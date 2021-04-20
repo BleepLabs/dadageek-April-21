@@ -1,12 +1,16 @@
+//using a button turn on and off the blinking
+// and a potentiometer to control the speed of the blinking
+// See "simple blink" in the class 1 folder for more notes
+
 int led_output = 0;
 unsigned long current_time;
 unsigned long prev_time = 0;
-int led_pin = 0;
-int button_pin = 12;
+int led_pin = 13; //built in led on the Teensy 4.1
+int button_pin = 30; //on the bleep base the left most button is pin 30
 int button_state;
 int prev_button_state;
 int blinky_state;
-int pot_pin=A0;
+int pot_pin=A10; //the top left pot is A10 on the bleep base
 int pot_reading; 
 
 void setup() {
@@ -22,6 +26,9 @@ void loop() {
 
   pot_reading = analogRead(pot_pin); //returns a value between 0 - 1023 aka 10 bits
 
+
+  //the button might "bounce" so sometimes when you press it it might go back and forth very quickly
+  // we'll fix this later
   if (prev_button_state == 1 && button_state == 0) {
     if (blinky_state == 1) {
       blinky_state = 0;
@@ -32,7 +39,7 @@ void loop() {
   }
 
   if (blinky_state == 0) {
-    if (current_time - prev_time > pot_reading) {
+    if (current_time - prev_time > pot_reading) { //no instead of a "hard coded" value for the rate we use a variable we can change with the top
       prev_time = current_time;
 
       if (led_output == 1) {
