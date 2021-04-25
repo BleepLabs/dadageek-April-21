@@ -2,34 +2,39 @@
   Bleep Base example
   Using LEDs
 
-  The bleep base vs has two addressable LEDs and one standard LED on the Teesny 4.1
+  The bleep base vs has two addressable LEDs and one standard LED on the Teensy 4.1
 */
 
-//A specila library must be used to communicate with the two ws2812 addressable LEDs on the board
+//A special library must be used to communicate with the two ws2812 addressable LEDs on the board
 // The standard LED libraries, like fastLED and adafruits neopixel, cause problems with the audio code so this version is used
 // except for these line:
 #define num_of_leds 2 //increase for external LEDs
 float max_brightness = .1; //change this to increase the max brightness of the LEDs. 1.0 is crazy bright
 //everything else can be left alone
 
-#include <WS2812Serial.h>
-#define led_data_pin 29 // only these pins can be used on the Teensy 3.2:  1, 5, 8, 10, 31
-byte drawingMemory[num_of_leds * 3];       //  3 bytes per LED
-DMAMEM byte displayMemory[num_of_leds * 12]; // 12 bytes per LED
+#include <WS2812Serial.h> //include the code from this file in our sketch 
+#define led_data_pin 29 
+byte drawingMemory[num_of_leds * 3];     
+DMAMEM byte displayMemory[num_of_leds * 12];
 WS2812Serial LEDs(num_of_leds, displayMemory, drawingMemory, led_data_pin, WS2812_GRB);
 
+//then we can get back to the normal initialization section
 
 unsigned long current_time;
-unsigned long prev_time[8];
+unsigned long prev_time[8]; //an array of 8 variables, all named prev_time
+
+//float is a floating point variable. They are the only kind of numbers  that can hold decimals.
+// We don't use them for everything as they take a little more time to compute than integers and longs
 float rainbow;
-float lfo=1;
-int lfo_latch;
+float lfo1 = 1;
+float lfo2;
+int lfo1_latch;
 
 void setup() {
 
   LEDs.begin(); //must be done in setup for the addressable LEDs to work.
-  //here is the basic way of writing to the LEDs
-  LEDs.setPixelColor(0, 0, 0, 0); //(LED number, red level, green level, blue level). All leverls are 0-255
+  //here is the basic way of writing to the LEDs.
+  LEDs.setPixelColor(0, 0, 0, 0); //(LED number, red level, green level, blue level). All levels are 0-255
   LEDs.setPixelColor(1, 0, 0, 0);
   LEDs.show(); //send these values to the LEDs
 
@@ -42,35 +47,27 @@ void loop() {
 
   if (current_time - prev_time[0] > 10) {
     prev_time[0] = current_time;
-    /*
-        if (lfo_latch == 1) {
-          lfo += 5;
-        }
-        if (lfo_latch == 0) {
-          lfo -= 3;
-        }
-    */
-    
-    //exponential looks more natural
-    if (lfo_latch == 1) {
-      lfo *= 1.15;
+
+    if (lfo1_latch == 1) { //== is compare, not set equal to
+      lfo1 += 5; //same as lfo=lfo+5;
     }
-    if (lfo_latch == 0) {
-      lfo *= .98;
+    if (lfo1_latch == 0) {
+      lfo1 -= 3; //same as lfo=lfo-35;
     }
 
-    if (lfo < 1) {
-      lfo = 1;
-      lfo_latch = 1;
+    if (lfo1 < 1) {
+      lfo1 = 1;
+      lfo1_latch = 1;
     }
-    if (lfo > 500) {
-      lfo = 500;
-      lfo_latch = 0;
+    if (lfo1 > 500) {
+      lfo1 = 500;
+      lfo1_latch = 0;
     }
-    
-    //analogWrite( pin, value) LED_BUILTIN means pin 13. Etiher can be used
-    // 10bit out means 0-1023 levels 
-    analogWrite(13, lfo); 
+
+    //analogWrite( pin, value) Pin 13 is attached to an LED on pretty much every Arduino board
+    // but on the Teensy 4.x it it can do PWM aka analogEWrite
+    // 10bit out means 0-1023 levels
+    analogWrite(13, lfo1);
 
   }
 
@@ -78,14 +75,18 @@ void loop() {
   if (current_time - prev_time[1] > 33) { //33 milliseconds is about 30 Hz, aka 30 fps
     prev_time[1] = current_time;
 
-    rainbow += .01;
+    rainbow += 0.01;
     if (rainbow > 1.0) {
       rainbow -= 1.0;
     }
 
-    //there's anoter function in this code bellow the loop which makes it easier to contol the LEDs
+    //there's another function in this sketch bellow the loop which makes it easier to control the LEDs
     // more info bellow the loop
-    set_LED(0, 0, 0, 1); //(led to change, hue,saturation,brightness)
+
+    //when doing math on floats, be sure to add a ".0" so it works properly
+    // lfo goes from 0-1023 but we need it to go from 0.0-1.0
+    lfo2 = lfo1 / 1023.0;  
+    set_LED(0, 0, 0, lfo2); //(led to change, hue,saturation,brightness)
     set_LED(1, rainbow, 1, 1);
     LEDs.show(); //send these values to the LEDs
   }
@@ -93,7 +94,7 @@ void loop() {
 
 
 
-}
+} //loop is over
 
 //This function is a little different than you might see in other libraries but it works pretty similar
 // instead of 0-255 you see in other libraries this is all 0-1.0
@@ -120,8 +121,8 @@ void set_LED(int pixel, float fh, float fs, float fv) {
   unsigned int i = h / 32;   // We want a value of 0 thru 5
   unsigned int f = (h % 32) * 8;   // 'fractional' part of 'i' 0..248 in jumps
 
-  unsigned int sInv = 255 - s;  // 0 -> 0xff, 0xff -> 0
-  unsigned int fInv = 255 - f;  // 0 -> 0xff, 0xff -> 0
+  unsigned int sInv = 255 - s;  
+  unsigned int fInv = 255 - f;  
   byte pv = v * sInv / 256;  // pv will be in range 0 - 255
   byte qv = v * (256 - s * f / 256) / 256;
   byte tv = v * (256 - s * fInv / 256) / 256;
