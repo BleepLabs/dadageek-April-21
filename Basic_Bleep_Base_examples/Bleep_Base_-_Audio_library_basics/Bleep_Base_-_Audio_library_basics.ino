@@ -94,8 +94,8 @@ void setup() {
   //the other channels of the mixer aren't used so don't need to be set
 
   //the second mixer is for delay feedback
-  mixer2.gain(0, .5);//signal coming in
-  mixer2.gain(1, .5);//signal coming back from the delay
+  mixer2.gain(0, 1);//signal coming in
+  mixer2.gain(1, 0);//signal coming back from the delay
 
 
 } //setup is over
