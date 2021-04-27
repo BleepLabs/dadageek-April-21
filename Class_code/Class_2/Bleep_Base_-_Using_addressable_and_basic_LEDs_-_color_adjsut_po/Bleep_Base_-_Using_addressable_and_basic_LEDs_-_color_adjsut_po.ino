@@ -13,8 +13,8 @@ float max_brightness = .1; //change this to increase the max brightness of the L
 //everything else can be left alone
 
 #include <WS2812Serial.h> //include the code from this file in our sketch  https://github.com/PaulStoffregen/WS2812Serial/archive/refs/heads/master.zip
-#define led_data_pin 29 
-byte drawingMemory[num_of_leds * 3];     
+#define led_data_pin 29
+byte drawingMemory[num_of_leds * 3];
 DMAMEM byte displayMemory[num_of_leds * 12];
 WS2812Serial LEDs(num_of_leds, displayMemory, drawingMemory, led_data_pin, WS2812_GRB);
 
@@ -29,6 +29,7 @@ float rainbow;
 float lfo1 = 1;
 float lfo2;
 int lfo1_latch;
+float pot_reading[8];
 
 void setup() {
 
@@ -80,13 +81,17 @@ void loop() {
       rainbow -= 1.0;
     }
 
+    pot_reading[0] = analogRead(A10) / 1023.0;
+    pot_reading[1] = 1.0 - (analogRead(A11) / 1023.0);
+    pot_reading[2] = 1.0 - (analogRead(A12) / 1023.0);
+
     //there's another function in this sketch bellow the loop which makes it easier to control the LEDs
     // more info bellow the loop
 
     //when doing math on floats, be sure to add a ".0" so it works properly
     // lfo goes from 0-1023 but we need it to go from 0.0-1.0
-    lfo2 = lfo1 / 1023.0;  
-    set_LED(0, 0, 0, lfo2); //(led to change, hue,saturation,brightness)
+    lfo2 = lfo1 / 1023.0;
+    set_LED(0, pot_reading[0], pot_reading[1], pot_reading[2]); //(led to change, hue,saturation,brightness)
     set_LED(1, rainbow, 1, 1);
     LEDs.show(); //send these values to the LEDs
   }
@@ -121,8 +126,8 @@ void set_LED(int pixel, float fh, float fs, float fv) {
   unsigned int i = h / 32;   // We want a value of 0 thru 5
   unsigned int f = (h % 32) * 8;   // 'fractional' part of 'i' 0..248 in jumps
 
-  unsigned int sInv = 255 - s;  
-  unsigned int fInv = 255 - f;  
+  unsigned int sInv = 255 - s;
+  unsigned int fInv = 255 - f;
   byte pv = v * sInv / 256;  // pv will be in range 0 - 255
   byte qv = v * (256 - s * f / 256) / 256;
   byte tv = v * (256 - s * fInv / 256) / 256;
