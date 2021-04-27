@@ -75,21 +75,21 @@ void loop() {
 
   if (current_time - prev_time[1] > 33) { //33 milliseconds is about 30 Hz, aka 30 fps
     prev_time[1] = current_time;
-
+    unsigned long cu = micros();
     rainbow += 0.0025;
     if (rainbow > 1.0) {
       rainbow -= 1.0;
     }
 
     float temp1 = analogRead(A10); //0-1023;
-    float temp2 = map(temp1, 0, 1023, 62, 86); //62,86 integers 
+    float temp2 = map(temp1, 0, 1023, 62, 86); //62,86 integers
     float temp3 = temp2 / 100.0; //.62 to .86
-    
+
     pot_reading[0] = temp3; //i want it to go to .86, .62;
     pot_reading[1] = 1.0 - (analogRead(A11) / 1023.0);
     pot_reading[2] = 1.0 - (analogRead(A12) / 1023.0);
-
     Serial.println(pot_reading[0]);
+    //Serial.println(pot_reading[0]);
     //there's another function in this sketch bellow the loop which makes it easier to control the LEDs
     // more info bellow the loop
 
@@ -99,6 +99,11 @@ void loop() {
     set_LED(0, pot_reading[0], pot_reading[1], pot_reading[2]); //(led to change, hue,saturation,brightness)
     set_LED(1, rainbow, 1, 1);
     LEDs.show(); //send these values to the LEDs
+    unsigned long du = micros() - cu;
+    Serial.println(du);
+    Serial.println();
+
+
   }
 
 
