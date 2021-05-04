@@ -1,3 +1,9 @@
+/*
+To add some stereo separation to the drone synth we made in class 2,
+A second delay is added that simple makes the audio get to one channel a tiny bit later than the other 
+*/
+
+
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
@@ -43,7 +49,7 @@ void setup() {
   // The audio library uses blocks of a set size so this is not a percentage or kilobytes, just a kind of arbitrary number.
   // On our Teensy 4.1 we can go up to almost 2000 but that won't leave any RAM for anyone else.
   // It's usually the delay and reverb that hog it.
-  AudioMemory(100);
+  AudioMemory(120);
 
   sgtl5000_1.enable(); //Turn the adapter board on
   sgtl5000_1.inputSelect(AUDIO_INPUT_LINEIN); //Tell it what input we want to use. Not necessary is you're not using the ins
@@ -84,7 +90,7 @@ void setup() {
   // whatever comes in will come out that output X millis later
   //You can't change this delay time without making lots of noise. We'll use my "tape delay" later
   delay1.delay(0, 250);
-  delay2.delay(0, 20);
+  delay2.delay(0, 20); //stereo separation delay. 
 
   //The mixer has four inputs we can change the volume of
   // gain.(channel from 0 to 3, gain from 0.0 to a large number)

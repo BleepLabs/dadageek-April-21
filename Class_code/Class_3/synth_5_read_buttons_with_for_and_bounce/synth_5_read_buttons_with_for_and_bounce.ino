@@ -1,3 +1,11 @@
+/*
+just doing digitalRead can give some unexpected results as buttons bounce between high and low very quickly when changing
+the bounce 2 library fixes this and it not really any more complicated than our previous method. 
+
+Heres a image of what it's doing https://github.com/thomasfredericks/Bounce2#lock-out-interval
+
+*/
+
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
@@ -33,12 +41,13 @@ AudioConnection          patchCord14(delay2, 0, i2s1, 1);
 AudioControlSGTL5000     sgtl5000_1;     //xy=210,163
 // GUItool: end automatically generated code
 
+//this is all copy paste
 #include <Bounce2.h>
-#define NUM_BUTTONS 8
+#define NUM_BUTTONS 8 //define means "NUM_BUTTONS" will just be replaced with "8" each time you write it. Unlike a variable it can't be changed but it can be used to define an array size 
 const int BUTTON_PINS[NUM_BUTTONS] = {30, 31, 32, 33, 34, 35, 36, 37};
 Bounce * buttons = new Bounce[NUM_BUTTONS];
-
-
+#define BOUNCE_LOCK_OUT 
+ 
 //then you can declare any variables you want.
 unsigned long current_time;
 unsigned long prev_time[8]; //an array of 8 variables all named "prev_time"
@@ -144,11 +153,13 @@ void setup() {
 void loop() {
   current_time = millis();
 
-  for (int j = 0; j < NUM_BUTTONS; j++)  {
-    buttons[j].update();
-    if ( buttons[j].fell() ) {
-      new_note_flag = 1;
-      new_note_number = j;
+//execute the code inside these {} "NUM_BUTTONS" amount of times, each time increasing j by one
+  // j++ is the same thing as saying j=j+1
+  for (int j = 0; j < NUM_BUTTONS; j++)  { 
+    buttons[j].update();//update the reading of each button
+    if ( buttons[j].fell() ) { //did it go from 1 last time to 0 this time? 
+      new_note_flag = 1; 
+      new_note_number = j; //remember which button this one that fell
     }
 
     if ( buttons[j].rose() ) {
@@ -156,6 +167,13 @@ void loop() {
     }
   }
 
+
+
+  int offset1 = (analogRead(A16) / 1023.0) * 100; 
+  int note_select = (new_note_number * 5) + offset1; //combine the not offset and what we got from the button reading
+  note_select = constrain(note_select, 0, 120); //keep this reading between 0 and 100
+  freq1 = chromatic[note_select]; //use this variable to select a frequency in the array
+  
   //freq1 = analogRead(A10);
   spacing1 = (analogRead(A11) / 1023.0) * 3.0;
   waveform1.frequency(freq1);
@@ -163,14 +181,9 @@ void loop() {
   waveform3.frequency(freq1 * 2.0);
   waveform4.frequency(freq1 * 0.5);
 
-  int offset1 = (analogRead(A16) / 1023.0) * 100;
-  int note_select = (new_note_number * 5) + offset1;
-  note_select = constrain(note_select, 0, 120);
-  freq1 = chromatic[note_select];
-
   if (new_note_flag == 1) {
     envelope1.noteOn();
-    new_note_flag = 2;
+    new_note_flag = 2; //turn this to something other than 0 or 1 so it won't continue to happen. Should only happen once
   }
   if (new_note_flag == 0) {
     envelope1.noteOff();

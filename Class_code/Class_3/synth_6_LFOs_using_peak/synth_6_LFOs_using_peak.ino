@@ -1,3 +1,9 @@
+/*
+Read the values of oscillators so we can use the to change variables 
+
+
+*/
+
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
@@ -40,7 +46,7 @@ AudioControlSGTL5000     sgtl5000_1;     //xy=210,163
 #define NUM_BUTTONS 8
 const int BUTTON_PINS[NUM_BUTTONS] = {30, 31, 32, 33, 34, 35, 36, 37};
 Bounce * buttons = new Bounce[NUM_BUTTONS];
-
+#define BOUNCE_LOCK_OUT
 
 //then you can declare any variables you want.
 unsigned long current_time;
@@ -206,19 +212,19 @@ void loop() {
     mixer2.gain(2, amp1);//highpass in
   }
 
-
-  float filter_freq_pot = map(analogRead(A12), 0, 1023, 100, 15000);
-  float lfo_mod = .5 + (lfo[0] * .5); //.5 to 1.0
-  float filter_freq = freq1 + (filter_freq_pot * lfo_mod);
-  filter1.frequency(filter_freq);
+//use three different things to adjust the filter frequency
+  float filter_freq_pot = map(analogRead(A12), 0, 1023, 100, 15000); // a pot that has a range of 100 to 15k
+  float lfo_mod = .5 + (lfo[0] * .5); //lfo reading which now goes from .5 to 1.0
+  float filter_freq = freq1 + (filter_freq_pot * lfo_mod); //and the current note frequency 
+  filter1.frequency(filter_freq); 
 
   float amp2 = 1.0 - (analogRead(A15) / 1023.0);
   mixer2.gain(3, amp2); //feedback
 
   waveform5.frequency(analogRead(A17) / 100.0);
 
-  if (peak1.available() == 1) {
-    lfo[0] = peak1.read();
+  if (peak1.available() == 1) { //to read the current highest level of the waveform attached to peak1 we first have to check if it's ready
+    lfo[0] = peak1.read(); //returns a 0-1.0
   }
 
   if (current_time - prev_time[0] > 20 && 1) {
@@ -227,7 +233,7 @@ void loop() {
     Serial.println(filter_freq);
   }
 
-  if (current_time - prev_time[0] > 500 && 0) {
+  if (current_time - prev_time[0] > 500 && 0) { //change "&& 0" to "&& 1" to print this
     prev_time[0] = current_time;
 
     //Here we print out the usage of the audio library
