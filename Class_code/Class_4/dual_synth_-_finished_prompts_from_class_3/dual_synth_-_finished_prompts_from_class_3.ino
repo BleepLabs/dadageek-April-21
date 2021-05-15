@@ -1,6 +1,6 @@
 /*
-  Use this as a starting point.
-  All the audio biz and bounce stuff is setup
+Finished prompts from Class 3  
+Then separated the keys so the 4 on the left played on oscillator and the 4 on the right played the other
 */
 
 
@@ -45,6 +45,7 @@ float freq2;
 float amp1;
 float amp2;
 int button_offset;
+int button_offset2;
 
 void setup() {
 
@@ -76,15 +77,15 @@ void setup() {
   // If you're not using the line out don't worry about it.
   sgtl5000_1.lineOutLevel(21); //11-32, the smaller the louder. 21 is about 2 Volts peak to peak
 
-  waveform1.begin(1, 220, WAVEFORM_SINE);
-  waveform2.begin(1, 440, WAVEFORM_SINE);
+  waveform1.begin(1, 220, WAVEFORM_TRIANGLE);//amplitude 0-1.0, starting freq, shape
+  waveform2.begin(1, 440, WAVEFORM_SQUARE);
 
-  mixer1.gain(0, .5);
+  mixer1.gain(0, .5); 
   mixer1.gain(1, .5);
 
-  envelope1.attack(250);
+  envelope1.attack(250); //Times in milliseconds
   envelope1.decay(250);
-  envelope1.sustain(.3);
+  envelope1.sustain(.3); //volume level from 0-1.0
   envelope1.release(500);
 
   envelope2.attack(10);
@@ -99,13 +100,21 @@ void setup() {
 void loop() {
   current_time = millis();
 
-  freq1 = (1023 - analogRead(A10)) + chromatic[button_offset + 20]; //analogRead give 0-1023. Subtrat by that to flip the responsethe response
+ 
+  // Then we add the frequency from the chromatic array which is selected by a button plus 20
+ 
+ //analogRead give 0-1023. Subtract by that to flip the response. 
+ //We're doing floating point match then storing it in an int as we cant use a float to point at a position in an array
+  int pot1 = ((1023 - analogRead(A10)) / 1023.0) * 50.0; //gives 0-50. 
+  freq1 = chromatic[button_offset + pot1]; //final frequency is select by both the button pressed and the pot
   waveform1.frequency(freq1);
 
-  freq2 = ((1023 - analogRead(A11)) * 2) + chromatic[button_offset + 20];
+  //same thing for the other osc
+  int pot2 = ((1023 - analogRead(A11)) / 1023.0) * 50.0;
+  freq2 = chromatic[button_offset2 + pot2];
   waveform2.frequency(freq2);
 
-  amp1 = (1.0 - (analogRead(A14) / 1023.0)) * .5;
+  amp1 = (1.0 - (analogRead(A14) / 1023.0)) * .5; // 0 - 0.5
   amp2 = (1.0 - (analogRead(A15) / 1023.0)) * .5;
   mixer1.gain(0, amp1);
   mixer1.gain(1, amp2);
@@ -113,24 +122,33 @@ void loop() {
   for (int j = 0; j < NUM_BUTTONS; j++)  {
     buttons[j].update();
     if ( buttons[j].fell() ) {
-      button_offset = j * 5;
-      envelope1.noteOn();
-      envelope2.noteOn();
+      if (j < 4) { //if it's button 0-3 
+        button_offset = j * 5;  //When a button on the left is pressed, set the button offset variable to that number x 5 
+        envelope1.noteOn();  
+      }
+      if (j >= 4) {
+        button_offset2 = (j-4) * 5; //for a button on the right we button_offset2 want it to go from 0-3 but it's button 4-7 so we subtract by 4 then multiply
+        envelope2.noteOn();
+      }
     }
 
     if ( buttons[j].rose() ) {
-      envelope1.noteOff();
-      envelope2.noteOff();
+      if (j < 4) {
+        envelope1.noteOff();// turn envelope off. We don't have to change the button_offset. The oscillators will just continue to run but won't be heard
+      }
+      if (j >= 4) {
+        envelope2.noteOff();
+      }
 
     }
   }
 
   if (buttons[0].read() == 0) {
-    //do something if the button on the left is presssed
+    //do something if the button on the left is pressed
   }
 
 
-  if (current_time - prev_time[0] > 500 && 1) { //cahnge to && 0 to not do this code
+  if (current_time - prev_time[0] > 500 && 1) { //change to && 0 to not do this code
     prev_time[0] = current_time;
 
     //Here we print out the usage of the audio library

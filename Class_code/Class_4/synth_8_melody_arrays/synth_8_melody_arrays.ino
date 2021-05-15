@@ -1,8 +1,7 @@
 /*
-  Read the values of oscillators so we can use the to change variables
+Play back two separate melodies with some random notes
 
-
-*/
+*/ 
 
 #include <Audio.h>
 #include <Wire.h>
@@ -70,12 +69,14 @@ int new_note_number;
 //starts at midi note 12, C0
 PROGMEM const static float chromatic[121] = {16.3516, 17.32391673, 18.35405043, 19.44543906, 20.60172504, 21.82676736, 23.12465449, 24.499718, 25.95654704, 27.50000365, 29.13523896, 30.86771042, 32.7032, 34.64783346, 36.70810085, 38.89087812, 41.20345007, 43.65353471, 46.24930897, 48.99943599, 51.91309407, 55.00000728, 58.27047791, 61.73542083, 65.40639999, 69.29566692, 73.4162017, 77.78175623, 82.40690014, 87.30706942, 92.49861792, 97.99887197, 103.8261881, 110.0000146, 116.5409558, 123.4708417, 130.8128, 138.5913338, 146.8324034, 155.5635124, 164.8138003, 174.6141388, 184.9972358, 195.9977439, 207.6523763, 220.0000291, 233.0819116, 246.9416833, 261.6255999, 277.1826676, 293.6648067, 311.1270248, 329.6276005, 349.2282776, 369.9944716, 391.9954878, 415.3047525, 440.0000581, 466.1638231, 493.8833665, 523.2511997, 554.3653352, 587.3296134, 622.2540496, 659.2552009, 698.4565551, 739.9889431, 783.9909755, 830.6095048, 880.0001162, 932.3276461, 987.7667329, 1046.502399, 1108.73067, 1174.659227, 1244.508099, 1318.510402, 1396.91311, 1479.977886, 1567.981951, 1661.219009, 1760.000232, 1864.655292, 1975.533466, 2093.004798, 2217.46134, 2349.318453, 2489.016198, 2637.020803, 2793.82622, 2959.955772, 3135.963901, 3322.438019, 3520.000464, 3729.310584, 3951.066931, 4186.009596, 4434.92268, 4698.636906, 4978.032395, 5274.041605, 5587.652439, 5919.911543, 6271.927802, 6644.876037, 7040.000927, 7458.621167, 7902.133861, 8372.019192, 8869.845359, 9397.273811, 9956.06479, 10548.08321, 11175.30488, 11839.82309, 12543.8556, 13289.75207, 14080.00185, 14917.24233, 15804.26772, 16744.03838};
 
-int melody1[2][8] = {
+//This array has two dimensions. We can think of the two numbers in [] as coordinate to look up a position in a spreadsheet
+// two arrays of eight
+int melody1[2][8] = {  
   {32, 33, 35, 0, 44, 0, 47, 0},
   {20, 0, 0, 0, 35, 0, 43, 0}
 };
 
-float lfo[8] = {30, 0, 100}; //float can contain deciamls
+float lfo[8] = {30, 0, 100}; //float can contain decimals
 int lfo_latch[8];
 int lfo_rate[8];
 float lfo_rise_time[3] = {1.1, 1.03, 1.01};
@@ -184,10 +185,10 @@ void loop() {
 
   //melody_speed = 1000;
   melody_speed = (analogRead(A10) / 1023.0) * 500;
-  if (current_time - prev_time[2] > melody_speed) { //step through the sequnce, the meoldy
+  if (current_time - prev_time[2] > melody_speed) { //step through the sequence
     prev_time[2] = current_time;
 
-    melody_location++; //melody_location = melody_location + 1
+    melody_location++; //same as melody_location = melody_location + 1
     if (melody_location > 7) {
       melody_location = 0;
     }
@@ -198,19 +199,20 @@ void loop() {
     int temp1 = melody1[0][melody_location];
 
     if (temp1 > 0) {
-      int random_enable = random(100);
+      //lets make it more interesting by randomly changing some notes 
+      int random_enable = random(100); //random_enable will be something from 0-99
       int random_note1 = random(2, 13); //2,3,4....11,12
-      if (random_enable > 75 && melody_location > 3) {
-        temp1 = temp1 +  random_note1;
+      if (random_enable > 75 && melody_location > 3) { //if the enable is over 75 and the place in the melody is over 3
+        temp1 = temp1 +  random_note1; //add random note to temp1, the reading from the array 
       }
       melody_note_number = temp1;
       new_note_flag = 1;
       melody_note_timer = current_time;
     }
 
-    int temp2 = melody1[1][melody_location];
+    int temp2 = melody1[1][melody_location]; 
 
-    if (temp2 > 0) {
+    if (temp2 > 0) { //same as before
       melody_note_number2 = temp1;
       new_note_flag2 = 1;
       melody_note_timer2 = current_time;
@@ -223,12 +225,12 @@ void loop() {
     new_note_flag = 0;
   }
 
-  if (current_time - melody_note_timer2 > gate_length * 4) { //after 50 millis, turn the env off
+  if (current_time - melody_note_timer2 > gate_length * 4) { //after 200 millis, turn the env off
     new_note_flag2 = 0;
   }
 
-
-  for (int j = 0; j < NUM_BUTTONS; j++)  {
+//the keys can still trun on and off the notes but it won't work well as the melody is doing that too.
+  for (int j = 0; j < NUM_BUTTONS; j++)  { 
     buttons[j].update();
     if (buttons[j].fell()) {
       new_note_flag = 1;
@@ -240,13 +242,15 @@ void loop() {
     }
   }
 
-  int offset1 = (analogRead(A16) / 1023.0) * 100;
+//4 things are selecting the output frequency of the oscillators 
+  int offset1 = (analogRead(A16) / 1023.0) * 50; //pot from 0-50
+  //keyboard note x 5 , offset from out, melody note
   int note_select = (new_note_number * 5) + offset1 + melody_note_number;
-  note_select = constrain(note_select, 0, 120);
+  note_select = constrain(note_select, 0, 120); //dont let this number go over 120 or under 0 as that's outside the array 
 
-  float fm1 = (lfo[0] * .0025) + 1.0;
+  float fm1 = (lfo[0] * .0025) + 1.0; //lfo[0] is 0-1.0. Squish this down to 0-.0025 then add 1
 
-  freq1 = chromatic[melody_note_number];
+  freq1 = chromatic[note_select] * fm1; //the notes select the frequency then the lfo modulates that frequency a tiny bit
 
   spacing1 = (analogRead(A11) / 1023.0) * 3.0;
 
