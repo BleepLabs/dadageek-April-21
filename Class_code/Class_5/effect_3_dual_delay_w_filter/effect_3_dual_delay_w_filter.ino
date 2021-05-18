@@ -1,7 +1,8 @@
 /*
-  Use this as a starting point.
-  All the audio biz and bounce stuff is setup
+Parallel delays with an envelope 
+One delay uses a filter in the feedback path
 */
+
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
@@ -61,10 +62,11 @@ void setup() {
     buttons[i].interval(10);  // interval in milliseconds. How long after the first cahnge will ignore noise
   }
 
-  // The audio library uses blocks of a set size so this is not a percentage or kilobytes, just a kind of arbitrary number.
-  // The Teensy 4.1 hasalmost 2000 block of memory
-  // It's usually the delay and reverb that hog it.
-  AudioMemory(300);
+
+  AudioMemory(300); //remember to add enough memory blocks! if it's acting weired, see how many its using
+
+
+
 
   sgtl5000_1.enable(); //Turn the adapter board on
   sgtl5000_1.inputSelect(AUDIO_INPUT_LINEIN); //Tell it what input we want to use. Not necessary is you're not using the ins
@@ -124,11 +126,6 @@ void loop() {
   if ( buttons[0].rose() ) {
     envelope1.noteOff();
 
-  }
-
-
-  if (buttons[0].read() == 0) {
-    //do something if the button on the left is presssed
   }
 
 
