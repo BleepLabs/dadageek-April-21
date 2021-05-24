@@ -48,7 +48,8 @@ AudioControlSGTL5000     sgtl5000_1;     //xy=760,332
 // GUItool: end automatically generated code
 
 
-#define num_of_leds 20 //increase for external LEDs
+//LED initialization code
+#define num_of_leds 2 //increase for external LEDs
 float max_brightness = .1; //change this to increase the max brightness of the LEDs. 1.0 is crazy bright
 //everything else can be left alone
 
@@ -57,7 +58,7 @@ float max_brightness = .1; //change this to increase the max brightness of the L
 byte drawingMemory[num_of_leds * 3];
 DMAMEM byte displayMemory[num_of_leds * 12];
 WS2812Serial LEDs(num_of_leds, displayMemory, drawingMemory, led_data_pin, WS2812_GRB);
-
+//End LED code
 
 
 //this can be left alone
@@ -97,7 +98,7 @@ void setup() {
   }
 
   // The audio library uses blocks of a set size so this is not a percentage or kilobytes, just a kind of arbitrary number.
-  // The Teensy 4.1 hasalmost 2000 block of memory
+  // The Teensy 4.1 has almost 2000 block of memory
   // It's usually the delay and reverb that hog it.
   AudioMemory(100);
 
@@ -105,7 +106,7 @@ void setup() {
   sgtl5000_1.inputSelect(AUDIO_INPUT_LINEIN); //Tell it what input we want to use. Not necessary is you're not using the ins
   sgtl5000_1.lineInLevel(10); //The volume of the input. 0-15 with 15 bing more amplifications
   //sgtl5000_1.inputSelect(AUDIO_INPUT_MIC);
-  //sgtl5000_1.micGain(13); //0 - 63bd of gain.
+  //sgtl5000_1.micGain(13); //0 - 63db of gain.
 
   //headphone jack output volume. Goes from 0.0 to 1.0 but a 100% signal will clip over .8 or so.
   // For headphones it's pretty loud at .4
@@ -169,7 +170,6 @@ void setup() {
   mixer3.gain(0, .5);
 
 
-  //begin the waveforms and setup the mixer leves here
 
 
 } //setup is over
@@ -177,7 +177,7 @@ void setup() {
 void loop() {
   current_time = millis();
 
-  seq[0] = (1023 - analogRead(A10));
+  seq[0] = (1023 - analogRead(A10)); //Each pot selects what the sequence will play in that position
   seq[1] = (1023 - analogRead(A11));
   seq[2] = (1023 - analogRead(A12));
   seq[3] = (1023 - analogRead(A13));
@@ -186,15 +186,15 @@ void loop() {
   seq[6] = (1023 - analogRead(A16));
   seq[7] = (1023 - analogRead(A17));
 
+  //use the averaged tap tempo reading to set the sequencer rate. 
   if (current_time - prev_time[1] > tap_read_average) {   //last figure (120 sets tempo.
     prev_time[1] = current_time;
 
-    clock_div++;
-    if (clock_div > 3) {
+    clock_div++; //used to blink the LED more slowly. Not just every step of the sequencer
+    if (clock_div > 3) { //every 4 steps this will happen
       clock_div = 0;
-      tempo_led_flag = 1;
-      led_timer = current_time;
-      tempo_led_bright = 1;
+      led_timer = current_time; //remember the time so we can turn it off at a set time later
+      tempo_led_bright = 1; //set the initial brightness of the LED
     }
 
     seq_location++;
@@ -203,8 +203,8 @@ void loop() {
     }
 
     int temp1 = seq[seq_location];
-
-    if (temp1 >= 104 && temp1 < 287) {
+//Turn on an envelope or drum based on the pot value
+    if (temp1 >= 104 && temp1 < 287) { 
       drum1.noteOn();
     }
 
@@ -223,41 +223,48 @@ void loop() {
       drum3.noteOn();
     }
 
-  }
+  } //end of sequencer timing "if"
 
-  if (current_time - led_timer > 10 && tempo_led_flag == 1) {
-    set_LED(0, .5, .5, tempo_led_bright);
-    tempo_led_bright = tempo_led_bright * .9;
-    LEDs.show();
+
+//after 10 milliseconds the led will begin to fade out
+  if (current_time - led_timer > 10) { 
+    set_LED(0, .5, .5, tempo_led_bright); //(led select, hue, saturation, brightness)
+    tempo_led_bright = tempo_led_bright * .9; //reduce the brightness
+     //we could use a flag o turn the brightness to 0 once it's below a certain level but it works just fine this way
+    LEDs.show(); //send the data to the LEDs
   }
 
 
 
   for (int j = 0; j < NUM_BUTTONS; j++)  {
-    buttons[j].update();
+    buttons[j].update(); //update all the buttons
   }
 
   if ( buttons[0].fell() ) {
-    tap_read_sel++;
+    
+    tap_read_sel++; //increment the value we'll use to select which place in the array to store the new reading 
     if (tap_read_sel > 2) {
       tap_read_sel = 0;
     }
-    last_tap = current_tap;
-    current_tap = current_time;
+    last_tap = current_tap; //remember the last time the bottom was pressed
+    current_tap = current_time; //update the current time 
 
-    tap_reads[tap_read_sel] = current_tap - last_tap;
+//were interested in the difference between the last and current time
+    // store this in the array at the selected location
+    tap_reads[tap_read_sel] = current_tap - last_tap; 
+
 
     for (int j = 0; j < 3; j++) {
-      tap_read_average = tap_read_average + tap_reads[j];
+      tap_read_average = tap_read_average + tap_reads[j]; //add up all three readings
     }
-    tap_read_average = (tap_read_average / 3) / 4;
-    Serial.println(tap_read_average);
+    tap_read_average = (tap_read_average / 3) / 4; //divide by 3 to get the average. then divide by 4 so the tap will be for ever 4 steps not every single one. This makes it more intuitive to use
+    Serial.println(tap_read_average); 
 
   }
 
 
 
-  if (current_time - prev_time[0] > 500 && 0) { //cahnge to && 0 to not do this code
+  if (current_time - prev_time[0] > 500 && 0) { //change to && 0 to not do this code
     prev_time[0] = current_time;
 
 

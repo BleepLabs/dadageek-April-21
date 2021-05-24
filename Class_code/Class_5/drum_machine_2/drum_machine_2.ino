@@ -1,5 +1,6 @@
 /*
   Use arrays to play a beat with the drum and noise objects
+  Random chance is added 
 */
 
 #include <Audio.h>
@@ -65,7 +66,7 @@ void setup() {
   sgtl5000_1.inputSelect(AUDIO_INPUT_LINEIN); //Tell it what input we want to use. Not necessary is you're not using the ins
   sgtl5000_1.lineInLevel(10); //The volume of the input. 0-15 with 15 bing more amplifications
   //sgtl5000_1.inputSelect(AUDIO_INPUT_MIC);
-  //sgtl5000_1.micGain(13); //0 - 63bd of gain.
+  //sgtl5000_1.micGain(13); //0 - 63db of gain.
 
   //headphone jack output volume. Goes from 0.0 to 1.0 but a 100% signal will clip over .8 or so.
   // For headphones it's pretty loud at .4
@@ -127,7 +128,7 @@ void loop() {
 
     int temp1 = seq[1][melody_location];
     if (temp1 > 0) {
-      hat_length = temp1 * (analogRead(A12) / 1023.0) * 10.0;
+      hat_length = temp1 * (analogRead(A12) / 1023.0) * 10.0; //use the reading in the array and the pot to change how long the note is on
       //hat_length = random(2, 10);
       float rn1 = ((random(100) / 100.0) * .5) + .5;
       noise1.amplitude(rn1);

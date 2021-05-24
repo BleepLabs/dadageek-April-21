@@ -1,7 +1,12 @@
 /*
-  Use this as a starting point.
-  All the audio biz and bounce stuff is setup
+
+Using the audio input with the multiply effect and the delay
+
+One mixer is for the input and feedback leve, the other is for the wet/dry 
+
 */
+
+
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
@@ -66,7 +71,7 @@ void setup() {
   sgtl5000_1.inputSelect(AUDIO_INPUT_LINEIN); //Tell it what input we want to use. Not necessary is you're not using the ins
   sgtl5000_1.lineInLevel(10); //The volume of the input. 0-15 with 15 bing more amplifications
   //sgtl5000_1.inputSelect(AUDIO_INPUT_MIC);
-  //sgtl5000_1.micGain(13); //0 - 63bd of gain.
+  //sgtl5000_1.micGain(13); //0 - 63db of gain.
 
   //headphone jack output volume. Goes from 0.0 to 1.0 but a 100% signal will clip over .8 or so.
   // For headphones it's pretty loud at .4
@@ -81,7 +86,6 @@ void setup() {
   mixer1.gain(0, .5); //dry input
   mixer1.gain(1, 0);  //wet multiply
   waveform1.begin(1, .25, WAVEFORM_SINE);
-  //begin the waveforms and setup the mixer leves here
 
   mixer2.gain(0, 0); //dry input
   mixer2.gain(1, 0); //wet multiply
@@ -95,17 +99,17 @@ void loop() {
   current_time = millis();
 
   float fb = 1.0 - (analogRead(A11) / 1023.0); //0-1.0
-  mixer1.gain(2, fb); //feedback
+  mixer1.gain(2, fb); //delay feedback
 
   float freq1 = (analogRead(A10) / 1023.0) * 1000.0;
-  waveform1.frequency(freq1);
+  waveform1.frequency(freq1); //oscillator that is multiplied with the input audio 
 
   float blend1 = analogRead(A12) / 1023.0;
   mixer2.gain(0, blend1); //dry input
   mixer2.gain(1, 0); //wet multiply
   mixer2.gain(2, 1.0 - blend1); //wet delay
 
-  if (current_time - prev_time[0] > 500 && 1) { //cahnge to && 0 to not do this code
+  if (current_time - prev_time[0] > 500 && 1) { //change to && 0 to not do this code
     prev_time[0] = current_time;
 
     //Here we print out the usage of the audio library
