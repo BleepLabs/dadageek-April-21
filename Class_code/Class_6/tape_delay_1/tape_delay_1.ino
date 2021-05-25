@@ -1,8 +1,5 @@
-/*
-  All the basics you need for audio, peak reading,
-  addressable LEDs, button reading,and smoothing
+#include "effect_tape_delay.h" // this needs to be before the other audio code 
 
-*/
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
@@ -10,22 +7,32 @@
 #include <SerialFlash.h>
 
 // GUItool: begin automatically generated code
-AudioSynthWaveform       waveform1;      //xy=152,314
-AudioSynthWaveform       waveform2;      //xy=183,367
-AudioAnalyzePeak         peak1;          //xy=293,235
-AudioAnalyzePeak         peak2;          //xy=304,444
-AudioMixer4              mixer1;         //xy=436,353
-AudioOutputI2S           i2s1;           //xy=684,350
-AudioConnection          patchCord1(waveform1, 0, mixer1, 0);
+AudioSynthWaveform       waveform2;      //xy=93,662
+AudioSynthWaveform       waveform1;      //xy=97,613
+AudioSynthWaveform       waveform4;      //xy=101,768
+AudioSynthWaveform       waveform3;      //xy=107,733
+AudioAnalyzePeak         peak2;          //xy=284,631
+AudioAnalyzePeak         peak1;          //xy=287,591
+AudioMixer4              mixer1;         //xy=358,810
+AudioEffectTapeDelay         delay1;         //xy=358,927
+AudioMixer4              mixer2;         //xy=523,712
+AudioOutputI2S           i2s1;           //xy=694,726
+AudioConnection          patchCord1(waveform2, peak2);
 AudioConnection          patchCord2(waveform1, peak1);
-AudioConnection          patchCord3(waveform2, 0, mixer1, 1);
-AudioConnection          patchCord4(waveform2, peak2);
-AudioConnection          patchCord5(mixer1, 0, i2s1, 0);
-AudioConnection          patchCord6(mixer1, 0, i2s1, 1);
-AudioControlSGTL5000     sgtl5000_1;     //xy=511,226
+AudioConnection          patchCord3(waveform4, 0, mixer1, 1);
+AudioConnection          patchCord4(waveform4, 0, mixer2, 1);
+AudioConnection          patchCord5(waveform3, 0, mixer1, 0);
+AudioConnection          patchCord6(waveform3, 0, mixer2, 0);
+AudioConnection          patchCord7(mixer1, delay1);
+AudioConnection          patchCord8(mixer1, 0, mixer2, 2);
+AudioConnection          patchCord9(delay1, 0, mixer1, 3);
+AudioConnection          patchCord10(mixer2, 0, i2s1, 0);
+AudioConnection          patchCord11(mixer2, 0, i2s1, 1);
+AudioControlSGTL5000     sgtl5000_1;     //xy=539,590
 // GUItool: end automatically generated code
 
-
+#define DELAY_SIZE 20000 //size in 2xintegers
+int16_t tape_delay_bank[DELAY_SIZE]; //int16_t is a more specific way of saying integer
 
 //A special library must be used to communicate with the two ws2812 addressable LEDs on the board
 // The standard LED libraries, like fastLED and adafruits neopixel, cause problems with the audio code so this version is used
@@ -56,7 +63,8 @@ unsigned long prev_time[8]; //an array of 8 variables all named "prev_time"
 float lfo[4];
 float rainbow;
 int pcell1, smooth1;
-
+float freq[5];
+int dt; 
 void setup() {
 
   LEDs.begin(); //must be done in setup for the addressable LEDs to work.
@@ -93,20 +101,58 @@ void setup() {
   // If you're not using the line out don't worry about it.
   sgtl5000_1.lineOutLevel(21); //11-32, the smaller the louder. 21 is about 2 Volts peak to peak
 
-  waveform1.begin(.5, .2, WAVEFORM_SINE); //(amplitude, frequency, shape)
+  waveform1.begin(.5, 10.0, WAVEFORM_SAMPLE_HOLD); //(amplitude, frequency, shape)
   waveform1.offset(.5); //DC offset, moves the waveform up and down
+  waveform1.phase(0); //time offset, sets when it starts
 
-  waveform2.begin(1, 220, WAVEFORM_SINE);
-  waveform2.offset(0);
+  waveform2.begin(.5, 1.1, WAVEFORM_SINE);
+  waveform2.offset(.5);
 
-  mixer1.gain(0,0); 
-  mixer1.gain(1,1);
+  waveform3.begin(1, 0, WAVEFORM_SINE);
+  waveform4.begin(1, 0, WAVEFORM_SINE);
+
+  mixer1.gain(0, .5);
+  mixer1.gain(1, 0);
+  mixer1.gain(3, .3); //feedback
+
+  mixer2.gain(0, .5); //dry waveform3
+  mixer2.gain(1, 0);
+  mixer2.gain(2, .5); //wet delay
+
+  delay1.begin(tape_delay_bank, DELAY_SIZE, DELAY_SIZE / 2, 0, 2);
 
 } //setup is over
 
 
 void loop() {
   current_time = millis();
+
+  float temp1 = analogRead(A14);
+  float fb = smooth(1, temp1) / 1023.0; //smooth cant take floats
+  mixer1.gain(3, fb); //feedback
+
+  float wetdry = 1.0 - (analogRead(A15) / 1023.0);
+  mixer2.gain(0, wetdry); //dry waveform3
+  mixer2.gain(2, 1.0 - wetdry); //wet delay
+
+  if (current_time - prev_time[4] > 2) {
+    prev_time[4] = current_time;
+    dt = map(analogRead(A12), 0, 1023, 0, DELAY_SIZE);
+    dt = smooth(2, dt);
+    delay1.length(dt);
+  }
+
+  // freq[3] = 200.0 + ((int(lfo[1] * 10.0) | int(lfo[2] * 10.0)) * 10.0);
+  freq[3] = 200.0 + (lfo[1] * 100.0) + (lfo[2] * 100.0);
+
+  waveform3.frequency(smooth1);
+
+  waveform1.amplitude(analogRead(A10) / 1023.0);
+  waveform2.amplitude(analogRead(A11) / 1023.0);
+
+
+  freq[4] = 200.0 + (lfo[2] * 100.0);
+  waveform4.frequency(freq[4]);
 
   for (int j = 0; j < NUM_BUTTONS; j++)  {
     buttons[j].update();
@@ -122,11 +168,20 @@ void loop() {
     //do something if the button on the left is being held down
   }
 
-  if (current_time - prev_time[2] > 20) {
-    prev_time[2] = current_time;
+  if (current_time - prev_time[3] > 2) {
+    prev_time[3] = current_time;
     pcell1 = analogRead(A8);
     smooth1 = smooth(0, pcell1); //(select, input) select should be a differnt number for every diffent varible yo uwant to smooth.
   }
+
+  if (current_time - prev_time[2] > 50) {
+    prev_time[2] = current_time;
+    //Serial.print(fb);
+    // Serial.print(" ");
+    Serial.println(dt);
+  }
+
+
 
   if (peak1.available()) {
     lfo[1] = peak1.read();
@@ -164,7 +219,6 @@ void loop() {
     Serial.println();
     AudioProcessorUsageMaxReset(); //We need to reset these values so we get a real idea of what the audio code is doing rather than just peaking in every half a second
     AudioMemoryUsageMaxReset();
-
   }
 
 }// loop is over
