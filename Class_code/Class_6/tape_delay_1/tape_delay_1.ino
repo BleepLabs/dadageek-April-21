@@ -1,4 +1,12 @@
-#include "effect_tape_delay.h" // this needs to be before the other audio code 
+/*
+  Using my adjustable delay
+  The "effect_tape_delay.h" and "effect_tape_delay.cpp" must be in the same folder as the .ino
+
+  To import and export the GUI stuff, just change AudioEffectTapeDelay to AudioEffectDelay
+  and visa versa
+*/
+
+#include "effect_tape_delay.h" // this should to be before the other audio code 
 
 #include <Audio.h>
 #include <Wire.h>
@@ -31,8 +39,9 @@ AudioConnection          patchCord11(mixer2, 0, i2s1, 1);
 AudioControlSGTL5000     sgtl5000_1;     //xy=539,590
 // GUItool: end automatically generated code
 
-#define DELAY_SIZE 20000 //size in 2xintegers
-int16_t tape_delay_bank[DELAY_SIZE]; //int16_t is a more specific way of saying integer
+#define DELAY_SIZE 20000 //size samples. We're sampling at 44100HZ so this is about 1/2 a second
+int16_t tape_delay_bank[DELAY_SIZE]; //int16_t should be used for all of these banks.
+
 
 //A special library must be used to communicate with the two ws2812 addressable LEDs on the board
 // The standard LED libraries, like fastLED and adafruits neopixel, cause problems with the audio code so this version is used
@@ -64,7 +73,7 @@ float lfo[4];
 float rainbow;
 int pcell1, smooth1;
 float freq[5];
-int dt; 
+int dt;
 void setup() {
 
   LEDs.begin(); //must be done in setup for the addressable LEDs to work.
@@ -119,7 +128,10 @@ void setup() {
   mixer2.gain(1, 0);
   mixer2.gain(2, .5); //wet delay
 
-  delay1.begin(tape_delay_bank, DELAY_SIZE, DELAY_SIZE / 2, 0, 2);
+  //(bank select, size of bank, starting delay length, redux, lerp)
+  //redux is sample rate reduction. takes integers. 0 is 44100, 1 is 22050, 2 is 11025 etc. It's crude but allows you to double or quaduple the delay length at the expense of sample rate
+  //lerp is how fast it moves to the desired length. 0 is as fast as it can. takes integers.
+  delay1.begin(tape_delay_bank, DELAY_SIZE, 0, 0, 2);
 
 } //setup is over
 
@@ -128,7 +140,10 @@ void loop() {
   current_time = millis();
 
   float temp1 = analogRead(A14);
-  float fb = smooth(1, temp1) / 1023.0; //smooth cant take floats
+
+  //smooth(select,input) each separate thing you smooth needs it's own select value
+  //smooth can't take floats so we smooth the reading then divide
+  float fb = smooth(1, temp1) / 1023.0;
   mixer1.gain(3, fb); //feedback
 
   float wetdry = 1.0 - (analogRead(A15) / 1023.0);
@@ -142,8 +157,7 @@ void loop() {
     delay1.length(dt);
   }
 
-  // freq[3] = 200.0 + ((int(lfo[1] * 10.0) | int(lfo[2] * 10.0)) * 10.0);
-  freq[3] = 200.0 + (lfo[1] * 100.0) + (lfo[2] * 100.0);
+  freq[3] = 200.0 + (lfo[1] * 100.0) + (lfo[2] * 100.0); //combine three things to make the final frequency
 
   waveform3.frequency(smooth1);
 
@@ -171,20 +185,22 @@ void loop() {
   if (current_time - prev_time[3] > 2) {
     prev_time[3] = current_time;
     pcell1 = analogRead(A8);
-    smooth1 = smooth(0, pcell1); //(select, input) select should be a differnt number for every diffent varible yo uwant to smooth.
+    smooth1 = smooth(0, pcell1);
   }
 
   if (current_time - prev_time[2] > 50) {
     prev_time[2] = current_time;
-    //Serial.print(fb);
-    // Serial.print(" ");
+
+    //to see things on the serial monitor, put a " " between the values to print and end with a println
+    Serial.print(fb);
+    Serial.print(" ");
     Serial.println(dt);
   }
 
 
 
   if (peak1.available()) {
-    lfo[1] = peak1.read();
+    lfo[1] = peak1.read(); //returns 0-1.0
   }
 
   if (peak2.available()) {

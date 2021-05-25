@@ -3,7 +3,7 @@
 #include "arm_math.h"
 #include "utility/dspinst.h"
 
-void AudioEffectTapeDelay::begin(short *delayline, uint32_t max_len, uint32_t dly_len, short redux, short lerp)
+void AudioEffectTapeDelay::begin(short *delayline, int32_t max_len, int32_t dly_len, short redux, short lerp)
 {
   max_dly_len = max_len - 1;
 
@@ -11,6 +11,11 @@ void AudioEffectTapeDelay::begin(short *delayline, uint32_t max_len, uint32_t dl
   if (desired_delay_length > max_dly_len) {
     desired_delay_length = max_dly_len;
   }
+
+  if (desired_delay_length < 1) {
+    desired_delay_length = 1;
+  }
+
   l_delayline = delayline;
   write_head = 0;
 
@@ -23,19 +28,23 @@ void AudioEffectTapeDelay::sampleRate(short redux)
   rate_redux = redux;
 }
 
-uint32_t AudioEffectTapeDelay::length(uint32_t dly_len)
+int32_t AudioEffectTapeDelay::length(int32_t dly_len)
 {
   desired_delay_length = dly_len;
   if (desired_delay_length > max_dly_len) {
     desired_delay_length = max_dly_len;
   }
+  if (desired_delay_length < 1) {
+    desired_delay_length = 1;
+  }
+
   return delay_length;
 }
 
-uint32_t AudioEffectTapeDelay::length_no_lerp(uint32_t dly_len)
+int32_t AudioEffectTapeDelay::length_no_lerp(int32_t dly_len)
 {
   delay_length = dly_len;
-  desired_delay_length=dly_len;
+  desired_delay_length = dly_len;
   if (delay_length > max_dly_len) {
     delay_length = max_dly_len;
   }
@@ -49,18 +58,17 @@ void AudioEffectTapeDelay::update(void)
   //static uint32_t preva;
   static short tick, tock;
   int input1;
-static byte mm;
+  static byte mm;
   if (l_delayline == NULL)return;
   uint32_t max_dly_len_m = max_dly_len;
   block = receiveWritable(0);
+
   if (block) {
     bp = block->data;
 
     for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
-
       tick++;
       if (tick > lerp_len) {
-
         if (delay_length < desired_delay_length - 1) {
           delay_length++;
         }
@@ -71,7 +79,6 @@ static byte mm;
         tick = 0;
       }
 
-
       tock++;
       if (tock > rate_redux) {
         tock = 0;
@@ -80,11 +87,19 @@ static byte mm;
       if (write_head >= max_dly_len_m) {
         write_head = 0;
       }
-
       read_head = ((write_head) + delay_length);
 
-      if (read_head > (max_dly_len_m - 1)) {
+      if (read_head > (max_dly_len_m)) {
         read_head -= (max_dly_len_m);
+      }
+
+      if (read_head < 0) {
+        read_head = 0;
+      }
+
+      pc++;
+      if (pc > 100) {
+        //  Serial.println(read_head);
       }
 
       l_delayline[write_head] = *bp ;

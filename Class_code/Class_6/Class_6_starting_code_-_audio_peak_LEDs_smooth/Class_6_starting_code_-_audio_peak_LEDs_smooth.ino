@@ -1,8 +1,8 @@
 /*
   All the basics you need for audio, peak reading,
   addressable LEDs, button reading,and smoothing
-
 */
+
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
@@ -69,11 +69,11 @@ void setup() {
 
   for (int i = 0; i < NUM_BUTTONS; i++) {
     buttons[i].attach( BUTTON_PINS[i] , INPUT_PULLUP  ); //setup the bounce instance for the current button
-    buttons[i].interval(10);  // interval in milliseconds. How long after the first cahnge will ignore noise
+    buttons[i].interval(10);  // interval in milliseconds. How long after the first change will ignore noise
   }
 
   // The audio library uses blocks of a set size so this is not a percentage or kilobytes, just a kind of arbitrary number.
-  // The Teensy 4.1 hasalmost 2000 block of memory
+  // The Teensy 4.1 has almost 2000 block of memory
   // It's usually the delay and reverb that hog it.
   AudioMemory(100);
 
@@ -99,8 +99,8 @@ void setup() {
   waveform2.begin(1, 220, WAVEFORM_SINE);
   waveform2.offset(0);
 
-  mixer1.gain(0,0); 
-  mixer1.gain(1,1);
+  mixer1.gain(0, 0);
+  mixer1.gain(1, 1);
 
 } //setup is over
 
@@ -125,7 +125,8 @@ void loop() {
   if (current_time - prev_time[2] > 20) {
     prev_time[2] = current_time;
     pcell1 = analogRead(A8);
-    smooth1 = smooth(0, pcell1); //(select, input) select should be a differnt number for every diffent varible yo uwant to smooth.
+    //(select, input) select should be a different number for every different variable you want to smooth.
+    smooth1 = smooth(0, pcell1);
   }
 
   if (peak1.available()) {
@@ -205,7 +206,7 @@ void set_LED(int pixel, float fh, float fs, float fv) {
   if (fh < -100) {
     fh = -100;
   }
-  //keep subtracting or adding 1 untill it's in the range of 0-1.0
+  //keep subtracting or adding 1 until it's in the range of 0-1.0
   while (fh > 1.0) {
     fh -= 1.0;
   }
@@ -266,8 +267,8 @@ void set_LED(int pixel, float fh, float fs, float fv) {
 ////////////smooth function
 //based on https://playground.arduino.cc/Main/DigitalSmooth/
 
-#define filterSamples   17   // filterSamples should  be an odd number, no smaller than 3. Incerease for more smoooothness
-#define array_num 8 //numer of differnt smooths we can take, one for each pot
+#define filterSamples   17   // filterSamples should  be an odd number, no smaller than 3. Increase for more smoooothness
+#define array_num 8 //number of different smooths we can take, one for each pot
 int sensSmoothArray[array_num] [filterSamples];   // array for holding raw sensor values for sensor1
 
 int smooth(int array_sel, int input) {

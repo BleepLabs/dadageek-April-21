@@ -142,13 +142,13 @@ void loop() {
   if (buttons[0].read() == 0) {
     //do something if the button on the left is being held down
   }
-  
+
   if (current_time - prev_time[3] > 2) {
     prev_time[3] = current_time;
     pcell1 = analogRead(A8);
     smooth1 = smooth(0, pcell1); //(select, input) select should be a differnt number for every diffent varible yo uwant to smooth.
   }
-  
+
   if (current_time - prev_time[2] > 50) {
     prev_time[2] = current_time;
     Serial.print(pcell1);
