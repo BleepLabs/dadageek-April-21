@@ -4,16 +4,19 @@
   - Record from the input into RAM
   - Play from program memory using WAV2SKETCH
 
+  more info on sampling and memory types here 
+  https://github.com/BleepLabs/dadageek-April-21/wiki/Memory-and-sampling
+
   The samplers really just play back or record to sections of memory. 
-  The have one input for sampling sample. Right now they are not stereo but I'll fix this soonish
-  You can have multiple ones looking at the same part of memory
+  The have one input for sampling sample. Right now they are not stereo but i'll fix this soonish
+  You can have multiple ones lookign at the same part of memory
 
   Since "AudioSampler" is not in the regular library use "AudioEffectChorus" as it has the same ins and outs
   Then just replace "AudioEffectChorus" with "MemSampler" and "chorusX" with "samperX"
   
   Sampler functions:
   begin(array select, array length); //do this in setup
-  start_location(int location in samples); //Set the start at any position in the sample
+  start_location(int location in samples); //Set the start at any postion in the sample
   play_length(int length in samples); //how long to play
   play(); //start the sample playing at the selected start location and length. It will play the entire length unless stopped
   stop(); //stop the sample playing or recording
@@ -22,7 +25,7 @@
   reverse(0 or 1); //1 to play it backwards
 */
 
-#include "mem_sampler.h" //include before the rest
+#include "mem_sampler.h" //include beore the rest
 
 #include <Audio.h>
 #include <Wire.h>
@@ -31,7 +34,7 @@
 #include <SerialFlash.h>
 
 // GUItool: begin automatically generated code
-MemSampler          sampler2;       //xy=118,397  //these were "AudioEffectChorus        chorus1; ""
+MemSampler          sampler2;       //xy=118,397
 MemSampler          sampler1;       //xy=123,348
 MemSampler          sampler3;       //xy=146,441
 MemSampler          sampler4;       //xy=177,490
@@ -111,11 +114,11 @@ void setup() {
   }
   Serial.println("card initialized.");
 
-  //SD2RAM copies the file in quotations from the root of the SD card to the bank specified
+  //SD2RAM copies the file in quatoations from the root of the SD card to the bank specified
   // Make sure the bank is big enough to fit it. On your computer simply see how may bytes it is and make the bank that big in the initilaization sections
-  // it returns the actual size of the audio so the sample will end at just the right time
-  // this is currently just for mono WAV files that are 16bit but I'll be adding more features soon
-  //sd_wav_sample_len = SD2RAM("X.WAV", SDbank0); //file name inside " " , bank to put it in
+  // it reurns the acutal size of the audio so the sample will end at just the right time
+  // this is currently jsut for mono wav files that are 16bit but I'll be adding more features soon
+  //sd_wav_sample_len = SD2RAM("X.wav", SDbank0); //file name inside " " , bank to put it in
 
   LEDs.begin(); //must be done in setup for the addressable LEDs to work.
   //here is a basic way of writing to the LEDs.
@@ -129,7 +132,7 @@ void setup() {
   }
 
   //what we put in RAM, as in the arrays for the audio in or SD card samples, 
-  // is different that setting space aside for audio
+  // is differnt that setting space aside for audio
   AudioMemory(100);
 
   sgtl5000_1.enable(); //Turn the adapter board on
@@ -144,7 +147,7 @@ void setup() {
   // For now lets set this one once and leave it alone.
   sgtl5000_1.volume(0.25);
 
-  //The line out has a separate level control but it's not meant to be adjusted like the volume function above.
+  //The line out has a seperate level control but it's not meant to be adjusted like the volume function above.
   // If you're not using the line out don't worry about it.
   sgtl5000_1.lineOutLevel(21); //11-32, the smaller the louder. 21 is about 2 Volts peak to peak
 
@@ -160,7 +163,7 @@ void setup() {
   amp1.gain(1); //used to attenuate or amplify the incoming siganl before it goes to the sampler input
 
   //(bank name, length of sample)
-  //length of sample is returned by SDtoRAM. It's a little different than the actual file length
+  //length of sample is returned by SDtoRAM. It's a little differnt than the actual file length
   sampler1.begin(SDbank0, sd_wav_sample_len);
   sampler1.loop(0); //1 too loop
   sampler1.frequency(1.0); //1.0 is normal speed. .5 would be half as slow, 2 would be twice as fast
