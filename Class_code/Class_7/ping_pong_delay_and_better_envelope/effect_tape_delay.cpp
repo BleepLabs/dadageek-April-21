@@ -15,6 +15,7 @@ void AudioEffectTapeDelay::begin(short *delayline, int32_t max_len, int32_t dly_
   if (desired_delay_length < 1) {
     desired_delay_length = 1;
   }
+  delay_length = desired_delay_length;
 
   l_delayline = delayline;
   write_head = 0;
@@ -23,14 +24,19 @@ void AudioEffectTapeDelay::begin(short *delayline, int32_t max_len, int32_t dly_
   lerp_len = lerp;
 }
 
-void AudioEffectTapeDelay::sampleRate(short redux)
+void AudioEffectTapeDelay::interpolation(byte lerp)
+{
+  lerp_len = lerp;
+}
+
+void AudioEffectTapeDelay::sampleRate(byte redux)
 {
   rate_redux = redux;
 }
 
 int32_t AudioEffectTapeDelay::length(int32_t dly_len)
 {
-  desired_delay_length = dly_len;
+  desired_delay_length = max_dly_len - dly_len;
   if (desired_delay_length > max_dly_len) {
     desired_delay_length = max_dly_len;
   }
@@ -43,7 +49,7 @@ int32_t AudioEffectTapeDelay::length(int32_t dly_len)
 
 int32_t AudioEffectTapeDelay::length_no_lerp(int32_t dly_len)
 {
-  delay_length = dly_len;
+  delay_length = max_dly_len - dly_len;
   desired_delay_length = dly_len;
   if (delay_length > max_dly_len) {
     delay_length = max_dly_len;

@@ -149,8 +149,8 @@ void setup() {
   //(bank select, size of bank, starting delay length, redux, lerp)
   //redux is sample rate reduction. takes integers. 0 is 44100, 1 is 22050, 2 is 11025 etc. It's crude but allows you to double or quaduple the delay length at the expense of sample rate
   //lerp is how fast it moves to the desired length. 0 is as fast as it can. takes integers.
-  delay1.begin(tape_delay_bank[0], DELAY_SIZE, 0, 0, 0);
-  delay2.begin(tape_delay_bank[1], DELAY_SIZE, 0, 0, 0);
+  delay1.begin(tape_delay_bank[0], DELAY_SIZE, 0, 0, 2);
+  delay2.begin(tape_delay_bank[1], DELAY_SIZE, 0, 0, 2);
 
   envelope1.lutSelect(lut); //needed for my dumb library
 

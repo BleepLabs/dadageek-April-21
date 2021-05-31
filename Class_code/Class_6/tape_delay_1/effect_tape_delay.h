@@ -15,7 +15,8 @@ class AudioEffectTapeDelay :
     void begin(short *delayline, int32_t max_len, int32_t dly_len, short redux, short lerp);
     int32_t length(int32_t dly_len);
     int32_t length_no_lerp(int32_t dly_len);
-    void sampleRate(short redux);
+    void sampleRate(byte redux);
+    void interpolation(byte lerp);
     virtual void update(void);
 
   private:
