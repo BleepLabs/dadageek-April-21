@@ -23,30 +23,42 @@
 #include <SD.h>
 #include <SerialFlash.h>
 
+#include <Audio.h>
+#include <Wire.h>
+#include <SPI.h>
+#include <SD.h>
+#include <SerialFlash.h>
+
 // GUItool: begin automatically generated code
-AudioSynthWaveform       waveform1;      //xy=102.5,331.2500047683716
-AudioInputI2S            i2s1;           //xy=104,191
-AudioEffectEnvelopeAdjustable      envelope1;      //xy=123.75,276.25
-AudioMixer4              mixer1;         //xy=318.25000381469727,210.25000381469727
-AudioEffectTapeDelay         delay1;         //xy=351,369
-AudioEffectTapeDelay         delay2;         //xy=515,373
-AudioMixer4              mixer2;         //xy=663,141
-AudioMixer4              mixer3;         //xy=667,223
-AudioOutputI2S           i2s2;           //xy=818,199
+AudioSynthWaveform       waveform1;      //xy=89,319
+AudioInputI2S            i2s1;           //xy=107,124
+AudioEffectEnvelopeAdjustable envelope1;      //xy=117,235
+AudioEffectTapeDelay     delay1;         //xy=321,433
+AudioMixer4              mixer1;         //xy=330,273
+AudioMixer4              mixer4;         //xy=345,94
+AudioEffectTapeDelay     delay2;         //xy=493,505
+AudioMixer4              mixer3;         //xy=671,295
+AudioMixer4              mixer2;         //xy=685,175
+AudioOutputI2S           i2s2;           //xy=828,226
 AudioConnection          patchCord1(waveform1, envelope1);
 AudioConnection          patchCord2(i2s1, 0, mixer1, 0);
-AudioConnection          patchCord3(envelope1, 0, mixer1, 1);
-AudioConnection          patchCord4(mixer1, delay1);
-AudioConnection          patchCord5(mixer1, 0, mixer2, 1);
-AudioConnection          patchCord6(mixer1, 0, mixer3, 1);
-AudioConnection          patchCord7(delay1, 0, delay2, 0);
-AudioConnection          patchCord8(delay1, 0, mixer2, 0);
-AudioConnection          patchCord9(delay2, 0, mixer3, 0);
-AudioConnection          patchCord10(delay2, 0, mixer1, 3);
-AudioConnection          patchCord11(mixer2, 0, i2s2, 0);
-AudioConnection          patchCord12(mixer3, 0, i2s2, 1);
-AudioControlSGTL5000     sgtl5000_1;     //xy=745.2500152587891,374.7500057220459
+AudioConnection          patchCord3(i2s1, 0, mixer4, 1);
+AudioConnection          patchCord4(envelope1, 0, mixer1, 1);
+AudioConnection          patchCord5(envelope1, 0, mixer4, 0);
+AudioConnection          patchCord6(delay1, delay2);
+AudioConnection          patchCord7(delay1, 0, mixer2, 0);
+AudioConnection          patchCord8(mixer1, 0, mixer2, 1);
+AudioConnection          patchCord9(mixer1, 0, mixer3, 1);
+AudioConnection          patchCord10(mixer1, delay1);
+AudioConnection          patchCord11(mixer4, 0, mixer2, 2);
+AudioConnection          patchCord12(mixer4, 0, mixer3, 2);
+AudioConnection          patchCord13(delay2, 0, mixer3, 0);
+AudioConnection          patchCord14(delay2, 0, mixer1, 3);
+AudioConnection          patchCord15(mixer3, 0, i2s2, 1);
+AudioConnection          patchCord16(mixer2, 0, i2s2, 0);
+AudioControlSGTL5000     sgtl5000_1;     //xy=760,420
 // GUItool: end automatically generated code
+
 
 
 #define DELAY_SIZE 44100 //size samples. We're sampling at 44100HZ so this is 1 second
@@ -113,7 +125,7 @@ void setup() {
   // The audio library uses blocks of a set size so this is not a percentage or kilobytes, just a kind of arbitrary number.
   // The Teensy 4.1 hasalmost 2000 block of memory
   // It's usually the delay and reverb that hog it.
-  AudioMemory(100);
+  AudioMemory(10);
 
   sgtl5000_1.enable(); //Turn the adapter board on
   sgtl5000_1.inputSelect(AUDIO_INPUT_LINEIN); //Tell it what input we want to use. Not necessary is you're not using the ins
@@ -133,32 +145,37 @@ void setup() {
 
   waveform1.begin(1, 0, WAVEFORM_BANDLIMIT_SQUARE); //(amplitude, frequency, shape)
 
-  mixer1.gain(0, 0); //audio in
-  mixer1.gain(1, .6); //waveform 1 through envelope 1
-  mixer1.gain(3, .3); //feedback
+  mixer1.gain(0, .5);  //audio in
+  mixer1.gain(1, .5); //waveform 1 through envelope 1
+  mixer1.gain(3, 0); //feedback
 
   //left mixer
-  mixer2.gain(0, .5); //from delay1
-  mixer2.gain(1, .5);//dry
+  mixer2.gain(0, 0); //from delay1
+  mixer2.gain(1, 0); //"dry" from mixer 1
+  mixer2.gain(2, 1); //actually dry from mixer 4
 
   //right mixer
-  mixer3.gain(0, .5); //from delay2
-  mixer3.gain(1, .5);//dry
+  mixer3.gain(0, 0); //from delay2
+  mixer3.gain(1, 0);//dry
+  mixer3.gain(2, 1); //actually dry from mixer 4
 
+  mixer4.gain(0, .5); //audio in
+  mixer4.gain(1, .5);//waveform1 and envelope
 
   //(bank select, size of bank, starting delay length, redux, lerp)
   //redux is sample rate reduction. takes integers. 0 is 44100, 1 is 22050, 2 is 11025 etc. It's crude but allows you to double or quaduple the delay length at the expense of sample rate
   //lerp is how fast it moves to the desired length. 0 is as fast as it can. takes integers.
-  delay1.begin(tape_delay_bank[0], DELAY_SIZE, 0, 0, 2);
-  delay2.begin(tape_delay_bank[1], DELAY_SIZE, 0, 0, 2);
+  delay1.begin(tape_delay_bank[0], DELAY_SIZE, 0, 0, 4);
+  delay2.begin(tape_delay_bank[1], DELAY_SIZE, 0, 0, 4);
+
 
   envelope1.lutSelect(lut); //needed for my dumb library
 
   //these are jsut the same as the standard library;
   envelope1.attack(2); //times in milliseconds
-  envelope1.decay(150);
+  envelope1.decay(250);
   envelope1.sustain(.5); //amplitued 0-1.0
-  envelope1.release(200);
+  envelope1.release(1000);
 
   //change shape of all stages. -1.0 very exponential, 1.0 very log
   envelope1.shape(-.8);
@@ -177,7 +194,7 @@ void loop() {
   }
 
   if ( buttons[0].fell() ) {
-    int r1 = random(40, 90);
+    int r1 = random(40, 90); //40-89 integers
     waveform1.frequency(chromatic[r1]);
     envelope1.trigger(); //just the attack and decay, how long the button down has no effect on the output
   }
@@ -187,11 +204,12 @@ void loop() {
     waveform1.frequency(chromatic[r1]);
     envelope1.noteOn(); //gates work jsut like the standard envelope
   }
+
   if ( buttons[1].rose() ) {
     envelope1.noteOff();
   }
 
-  if (current_time - prev_time[2] > 0) { //no need to do these fast. slower is less noisy and delaytimes should be v smooth.
+  if (current_time - prev_time[2] > 5) { //no need to do these fast. slower is less noisy and delaytimes should be v smooth.
     prev_time[2] = current_time;
     //smooth(select,input) each separate thing you smooth needs it's own select value
     //smooth can't take floats so we smooth the reading then divide
@@ -199,16 +217,24 @@ void loop() {
     mixer1.gain(3, feedback);
 
     wet_dry = smooth(1, analogRead(A11)) / 1023.0;
-    mixer2.gain(1, wet_dry); //dry waveform1
+    //mixer2.gain(1, wet_dry); //"dry" mixer1
+    //mixer3.gain(1, wet_dry); //"dry" mixer1
+
+    mixer2.gain(2, wet_dry); //dry mixer4
     mixer2.gain(0, 1.0 - wet_dry); //wet delay1
-    mixer3.gain(1, wet_dry); //dry waveform1
+
+    mixer3.gain(2, wet_dry); //dry mixer4
     mixer3.gain(0, 1.0 - wet_dry); //wet delay2
 
     int s1 = smooth(2, analogRead(A12));
     delay_time[0] = map(s1, 0, 1023, 0, DELAY_SIZE);
-    delay_time[1] = delay_time[0] * .33;
+    delay_time[1] = delay_time[0] * .333;
     delay1.length(delay_time[0]);
     delay2.length(delay_time[1]);
+
+    float shape1 = ((smooth(3, analogRead(A13)) / 1023.0) * 2.0) - 1.0;
+    envelope1.shape(shape1);
+
   }
 
 
@@ -222,7 +248,7 @@ void loop() {
     LEDs.show(); //send these values to the LEDs
   }
 
-  if (current_time - prev_time[7] > 50 && 1) { //change to && 0 to not do this code
+  if (current_time - prev_time[7] > 50 && 0) { //change to && 0 to not do this code
     prev_time[7] = current_time;
     Serial.print("delay time[0] ");
     Serial.println(delay_time[0]);
@@ -236,7 +262,7 @@ void loop() {
 
   }
 
-  if (current_time - prev_time[0] > 500 && 0) { //change to && 0 to not do this code
+  if (current_time - prev_time[0] > 500 && 1) { //change to && 0 to not do this code
     prev_time[0] = current_time;
 
     //Here we print out the usage of the audio library
