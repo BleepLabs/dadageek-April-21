@@ -4,7 +4,7 @@
   The times of both delays are pased on one pot, making them rhythically linked
   Each delay outputs to the left and right output mixers, both of which get the dry sigal from the input.
 
-  Also in this code is also an example of my shape adjsutable envelope
+  Also in this code is an example of my shape adjsutable envelope
   the default envelope is linear which doesnt sound very natural. This one can do adjustable curves
   as well as triggered pulses. More info in setup and https://github.com/BleepLabs/adjustable_envelope_example
 
