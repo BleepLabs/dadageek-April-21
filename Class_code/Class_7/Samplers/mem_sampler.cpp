@@ -11,8 +11,6 @@ void MemSampler::update(void)
   short *outp;
   short *inp;
 
-  if (sampleMemory == NULL)return;
-
   in_block1 = receiveReadOnly(0);
 
   //if (playing == 0 && recording == 0) return;
@@ -30,15 +28,21 @@ void MemSampler::update(void)
     if (mode == 1) {  //recording
       if (in_block1) {
         //l_delayline[write_head] = *bp ;
-        sampleMemory[write_head] = *inp++;
+
+        if (psel == 16) {
+          sampleMemory16[write_head] = *inp++;
+        }
+        if (psel == 32) {
+          sampleMemory32[write_head] = *inp++;
+        }
         write_head++;
         if (write_head > max_rec_len) {
           sample_len = max_rec_len;
           end_mod = sample_len;
           mode = 0;
-
-          Serial.print(" max ");
-          Serial.println(sample_len);
+          speed_offset = 2.0;
+          Serial.println("Max sample length reached");
+          
         }
       }
     }
@@ -63,7 +67,7 @@ void MemSampler::update(void)
         }
       }
 
-      uint32_t loc = index2 + index1;
+      loc = index2 + index1;
 
       int next = 1;
       if (rev == 1) {
@@ -74,18 +78,28 @@ void MemSampler::update(void)
 
       scale = (accumulator >> 7) & 0xFFFF;
 
-      int16_t val1t = sampleMemory[loc];
-      int32_t lerp_next = loc + next;
+      int16_t val1t, val2t;
+      int32_t lerp_next, val1, val2, val3;
+
+      lerp_next = loc + next;
       if (lerp_next < 1) {
         lerp_next = 1;
       }
       if (lerp_next > end_mod) {
         lerp_next = end_mod;
       }
-      int16_t val2t = sampleMemory[lerp_next];
-      int32_t val2 =  val2t * scale;
-      int32_t val1 = val1t * (0xFFFF - scale);
-      int32_t val3 = (val1 + val2) >> 16;
+      if (psel == 32) {
+        val1t = sampleMemory32[loc];
+        val2t = sampleMemory32[lerp_next];
+      }
+      if (psel == 16) {
+        val1t = sampleMemory16[loc];
+        val2t = sampleMemory16[lerp_next];
+
+      }
+      val2 =  val2t * scale;
+      val1 = val1t * (0xFFFF - scale);
+      val3 = (val1 + val2) >> 16;
       *outp++ = short(val3);
 
       accumulator += increment;

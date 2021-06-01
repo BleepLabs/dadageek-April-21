@@ -28,23 +28,36 @@ class MemSampler :
 
     void begin(unsigned int *in_sample, uint32_t len) {
       frequency(norm);
-      sampleMemory = in_sample;
-      sample_len = len - 1; //you cant use sineof on a poniter to fine the size of waht it's pointing to 
+      sampleMemory32 = in_sample;
+      sampleMemory16 = 0;
+      if (len < 256) {
+        len = 256;
+      }
+      psel = 32;
+      sample_len = len - 1; //you cant use sineof on a poniter to fine the size of waht it's pointing to
       max_rec_len = len - 1;
       start_pos = 0;
       end_mod = len - 1;
       mode = 0;
+
     }
 
     void begin(uint16_t *in_sample, uint32_t len) {
       frequency(norm);
-      sampleMemory = (unsigned int*)in_sample;
+      sampleMemory32 = 0;
+      sampleMemory16 = in_sample;
+
+      psel = 16;
+      if (len < 256) {
+        len = 256;
+      }
       sample_len = len - 1;
       max_rec_len = len - 1;
       start_pos = 0;
       end_mod = len - 1;
       mode = 0;
     }
+
 
     void start_location(uint32_t starts) {
       start_pos = starts;
@@ -75,11 +88,16 @@ class MemSampler :
       mode = 1;
     }
 
+    uint32_t current_location() {
+      return loc;
+    }
+
 
     void stop() {
       if (mode == 1) {
         sample_len = write_head;
         end_mod = sample_len;
+        speed_offset = 2.0;
         Serial.print(" ended ");
         Serial.println(sample_len);
       }
@@ -87,7 +105,10 @@ class MemSampler :
       write_head = 0;
       index2 = start_pos;
       accumulator = 0;
-      speed_offset = 2.0;
+    }
+
+    void freqOffset(float in){
+      speed_offset=in;
     }
 
     void reverse(byte sr) {
@@ -102,7 +123,8 @@ class MemSampler :
     uint32_t accumulator;
     float norm = 86.1679; //normal playback speed
     int speed_offset = 1.0;
-    unsigned int *sampleMemory;
+    unsigned int *sampleMemory32;
+    uint16_t *sampleMemory16;
     int32_t rev_start, rev_end;
     uint32_t scale;
     audio_block_t *inputQueueArray[1];
@@ -117,6 +139,9 @@ class MemSampler :
     float findex;
     int printcount;
     int prev_mode, mode;
+    uint32_t loc;
+    byte psel;
+
 };
 
 

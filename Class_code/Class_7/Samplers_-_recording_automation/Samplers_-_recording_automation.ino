@@ -1,19 +1,25 @@
 /*
+
+  Record the position of a pot and play it back 
+
+  
+  https://bleeplabs.github.io/AudioGUI-Bleep/?info=MemSampler
+
   This code shows three types of sampling
-  - Copy from the SD card ti internal RAM using SD2RAM
+  - Copy from the SD card to internal RAM using SD2RAM
   - Record from the input into RAM
   - Play from program memory using WAV2SKETCH
 
-  more info on sampling and memory types here 
+  more info on sampling and memory types here
   https://github.com/BleepLabs/dadageek-April-21/wiki/Memory-and-sampling
 
-  The samplers really just play back or record to sections of memory. 
+  The samplers really just play back or record to sections of memory.
   The have one input for sampling sample. Right now they are not stereo but i'll fix this soonish
   You can have multiple ones lookign at the same part of memory
 
   Since "AudioSampler" is not in the regular library use "AudioEffectChorus" as it has the same ins and outs
   Then just replace "AudioEffectChorus" with "MemSampler" and "chorusX" with "samperX"
-  
+
   Sampler functions:
   begin(array select, array length); //do this in setup
   start_location(int location in samples); //Set the start at any postion in the sample
@@ -23,7 +29,10 @@
   frequency(float speed ratio); //1.0 plays it back at the rate is was recorded. .5 is half speed, 2 is 2x speed
   loop(0 or 1); //1 to loop this sampler
   reverse(0 or 1); //1 to play it backwards
+  record(); starts recoding the input to the array
 */
+
+
 
 #include "mem_sampler.h" //include beore the rest
 
@@ -34,29 +43,31 @@
 #include <SerialFlash.h>
 
 // GUItool: begin automatically generated code
-MemSampler          sampler2;       //xy=118,397
-MemSampler          sampler1;       //xy=123,348
-MemSampler          sampler3;       //xy=146,441
-MemSampler          sampler4;       //xy=177,490
-AudioInputI2S            i2s1;           //xy=176,256
-AudioAmplifier           amp1;           //xy=364,232
-AudioMixer4              mixer1;         //xy=421,310
-AudioRecordQueue         queue1;         //xy=561,166
-AudioMixer4              mixer2;         //xy=600,296
-AudioOutputI2S           i2s2;           //xy=789,311
-AudioConnection          patchCord1(sampler2, 0, mixer1, 1);
-AudioConnection          patchCord2(sampler1, 0, mixer1, 0);
+AudioInputI2S            i2s1;           //xy=190,139
+MemSampler               sampler4;       //xy=208,483
+MemSampler               sampler3;       //xy=253,429
+MemSampler               sampler2;       //xy=279,366
+MemSampler               sampler1;       //xy=366,322
+AudioEffectGranular      granular1;      //xy=384,626
+AudioAmplifier           amp1;           //xy=403,196
+AudioMixer4              mixer1;         //xy=509,416
+AudioAnalyzePeak         peak1;          //xy=596,298
+AudioRecordQueue         queue1;         //xy=658,196
+AudioMixer4              mixer2;         //xy=753,301
+AudioOutputI2S           i2s2;           //xy=908,309
+AudioConnection          patchCord1(i2s1, 0, amp1, 0);
+AudioConnection          patchCord2(sampler4, 0, mixer1, 3);
 AudioConnection          patchCord3(sampler3, 0, mixer1, 2);
-AudioConnection          patchCord4(i2s1, 0, amp1, 0);
-AudioConnection          patchCord5(sampler4, 0, mixer1, 3);
-AudioConnection          patchCord6(amp1, 0, sampler2, 0);
-AudioConnection          patchCord7(amp1, 0, mixer2, 0);
-AudioConnection          patchCord8(mixer1, 0, mixer2, 1);
-AudioConnection          patchCord9(mixer2, 0, i2s2, 0);
-AudioConnection          patchCord10(mixer2, 0, i2s2, 1);
-AudioControlSGTL5000     sgtl5000_1;     //xy=507,419
+AudioConnection          patchCord4(sampler2, 0, mixer1, 1);
+AudioConnection          patchCord5(sampler1, 0, mixer1, 0);
+AudioConnection          patchCord6(sampler1, peak1);
+AudioConnection          patchCord7(amp1, sampler2);
+AudioConnection          patchCord8(amp1, 0, mixer2, 0);
+AudioConnection          patchCord9(mixer1, 0, mixer2, 1);
+AudioConnection          patchCord10(mixer2, 0, i2s2, 0);
+AudioConnection          patchCord11(mixer2, 0, i2s2, 1);
+AudioControlSGTL5000     sgtl5000_1;     //xy=582,574
 // GUItool: end automatically generated code
-
 
 //A special library must be used to communicate with the two ws2812 addressable LEDs on the board
 // The standard LED libraries, like fastLED and adafruits neopixel, cause problems with the audio code so this version is used
@@ -92,11 +103,27 @@ float amp[4];
 
 //make this the size of the file you want to copy in integers. More info in setup
 // must be "uint16_t"
-uint16_t SDbank0[45000]; 
+uint16_t SDbank0[1000];
 
-#define input_bank_max_length 44100  //1 second of space max. 
+//needs to be double the length you need to store so this will be one second
+#define input_bank_max_length 88100
 // must be "uint16_t"
-uint16_t inputSampleBank0[input_bank_max_length];
+//uint16_t inputSampleBank0[input_bank_max_length];
+
+float chop_ratio_step1;
+int chop_ratio_step2;
+float peak1_read, prev_peak1_read;
+
+long chops[100];
+int chop_loc;
+int chop_flag;
+unsigned long chop_time;
+
+#define auto_max_length 5000
+byte automation[auto_max_length]; //save space by making it a byte. an int is actually 4 bytes
+int auto_play_index, auto_rec_index;
+int pot_in, pot_out;
+
 
 #include "samples.h"
 #include "extras.h" //include these right before setup
@@ -114,11 +141,12 @@ void setup() {
   }
   Serial.println("card initialized.");
 
-  //SD2RAM copies the file in quatoations from the root of the SD card to the bank specified
+  //SD2RAM copies the file in quoations from the root of the SD card to the bank specified
   // Make sure the bank is big enough to fit it. On your computer simply see how may bytes it is and make the bank that big in the initilaization sections
   // it reurns the acutal size of the audio so the sample will end at just the right time
   // this is currently jsut for mono wav files that are 16bit but I'll be adding more features soon
-  //sd_wav_sample_len = SD2RAM("X.wav", SDbank0); //file name inside " " , bank to put it in
+
+  //  sd_wav_sample_len = SD2RAM("taiko2.wav", SDbank0); //file name inside " " , bank to put it in
 
   LEDs.begin(); //must be done in setup for the addressable LEDs to work.
   //here is a basic way of writing to the LEDs.
@@ -131,7 +159,7 @@ void setup() {
     buttons[i].interval(10);  // interval in milliseconds. How long after the first change will ignore noise
   }
 
-  //what we put in RAM, as in the arrays for the audio in or SD card samples, 
+  //what we put in RAM, as in the arrays for the audio in or SD card samples,
   // is differnt that setting space aside for audio
   AudioMemory(100);
 
@@ -164,13 +192,13 @@ void setup() {
 
   //(bank name, length of sample)
   //length of sample is returned by SDtoRAM. It's a little differnt than the actual file length
-  sampler1.begin(SDbank0, sd_wav_sample_len);
-  sampler1.loop(0); //1 too loop
+  sampler1.begin(break1, break1_length);
+  sampler1.loop(1); //1 too loop
   sampler1.frequency(1.0); //1.0 is normal speed. .5 would be half as slow, 2 would be twice as fast
   sampler1.reverse(0); //1 to pay in reverse
 
   //for use with the audio input sampler
-  sampler2.begin(inputSampleBank0, input_bank_max_length);
+  sampler2.begin(break1, break1_length);
   sampler2.loop(0);
   sampler2.frequency(1.0);
   sampler2.reverse(0);
@@ -178,16 +206,16 @@ void setup() {
   //you can also convert samples to arrays and store them in program memory aka flash
   // these samples live in samples.h
   // info here https://github.com/BleepLabs/dadageek-April-21/wiki/Memory-and-sampling#wav2sketch
-  sampler3.begin(clap626,clap626_length);
+  sampler3.begin(break1, break1_length);
   sampler3.loop(0);
   sampler3.frequency(1.0);
   sampler3.reverse(0);
 
-  sampler4.begin(dmx_kick,dmx_kick_length);
+  sampler4.begin(break1, break1_length);
   sampler4.loop(0);
   sampler4.frequency(1.0);
   sampler4.reverse(0);
-  
+
 } //setup is over
 
 
@@ -199,9 +227,10 @@ void loop() {
   }
 
   if ( buttons[0].fell() ) {
-    //sampler1.start_location(sd_wav_sample_len / 2); //where to start playing. Measured in samples
-    //sampler1.play_length(5000); //how long to play. Measured in samples
     sampler1.play();
+    chop_loc = 0; //restart the chop counter
+    chop_flag = 0;
+    peak1_read = 0; //other wise prev_peak1_read is still the last reading it took
   }
 
   if ( buttons[0].rose() ) {
@@ -220,6 +249,8 @@ void loop() {
     sampler4.play();
   }
 
+
+
   if ( buttons[7].fell() ) {
     sampler2.record();
   }
@@ -229,27 +260,131 @@ void loop() {
 
   if ( buttons[7].rose() ) {
     sampler2.stop();
+  }
 
+  if ( buttons[6].fell() ) {
+    auto_rec_index = 0;
+  }
+
+  if ( buttons[5].fell() ) {
+    auto_play_index = 0;
+  }
+
+  if ( buttons[6].read() == 0) { //record the pot
+    if (current_time - prev_time[4] > 2) { //500Hz sampling rate. You can probably go down to 100Hz and still be smooth enough
+      prev_time[4] = current_time;
+    
+      auto_rec_index++;
+      if (auto_rec_index > auto_max_length) { //jsut kees looping, doesnt reset or turn off
+        auto_rec_index = 0;
+      }
+      pot_in = analogRead(A17); 
+      automation[auto_rec_index] = pot_in / 4; //analog read is 10 bits but the array is a byte, 8 bites  1024/4=256. YOu can bee a cool nerd and do >>2, bitshift right by 2 
+    }
+  }
+
+  if ( buttons[5].read() == 0) { //play back 
+    if (current_time - prev_time[5] > 2) { //same rate but of course you could vary it
+      prev_time[5] = current_time;
+      auto_play_index++;
+      if (auto_play_index > auto_max_length) {
+        auto_play_index = 0;
+      }
+      pot_out = automation[auto_play_index] ;
+      Serial.println(pot_out);
+
+    }
   }
 
 
+  if (peak1.available()) {
+
+    prev_peak1_read = peak1_read;
+    peak1_read = peak1.read();
+
+    //for some reason it gets the first chop the first time you run it but dones't do it again hmmmm
+    // works pretty well though
+
+    //float target = analogRead(A16) / 1023.0;
+    float target = .4; //found by printing out peak
+    if (prev_peak1_read < target && peak1_read > target) {
+      if (chop_flag == 0) { //we want to wait a bit before recording another chop location
+        chop_time = current_time;
+        chop_flag = 1;
+        chops[chop_loc] = sampler1.current_location();
+        Serial.println(chops[chop_loc]);
+        chop_loc++;
+      }
+    }
+  }
+
+
+  if (current_time - chop_time > 100) {
+    chop_flag = 0;
+  }
+
   if (current_time - prev_time[2] > 5) { //slow all this down a little to reduce jiggly readings
     prev_time[2] = current_time;
-    
+
     mixer2.gain(0, smooth(1, analogRead(A10)) / 1023.0); //audio input
 
-    sampler_freq[0] = (smooth(0, analogRead(A14)) / 1023.0) * 3.0;
+    int raw_freq_pot = 1023 - smooth(0, analogRead(A14));
+
+    if (raw_freq_pot < 512) {
+      float temp1 = 4.0 - ((raw_freq_pot / 512.0) * 4.0);
+      sampler_freq[0] = temp1;
+      sampler1.reverse(1);
+      sampler2.reverse(1);
+      sampler3.reverse(1);
+      sampler4.reverse(1);
+    }
+    else {
+      float temp1 = (((raw_freq_pot - 512) / 512.0) * 4.0);
+      sampler_freq[0] = temp1;
+      sampler1.reverse(0);
+      sampler2.reverse(0);
+      sampler3.reverse(0);
+      sampler4.reverse(0);
+    }
+
+    //combine the pot and pot to cahnge the frequency
+    //take the pot from 0-255 to -1.0 to 1.0
+    sampler_freq[0] = sampler_freq[0] + (((pot_out / 255.0) * 2.0) - 1.0);
+    if (sampler_freq[0]<0){
+      sampler_freq[0]=0; //dont want to go under 0
+    }
+
     sampler1.frequency(sampler_freq[0]);
     sampler2.frequency(sampler_freq[0]);
     sampler3.frequency(sampler_freq[0]);
     sampler4.frequency(sampler_freq[0]);
 
+    chop_ratio_step1 = (smooth(2, analogRead(A15))) / 1023.0; //0 -1.0
+    chop_ratio_step2 = (chop_ratio_step1 * 15) + 1; //1 -16 integers
+
+    int start1 = ((smooth(3, analogRead(A16))) / 1023.0) * nuroto_length;
+    float trimmm = .9;
+
+    sampler2.start_location(chops[0]); //where to start playing. Measured in samples
+    sampler2.play_length((chops[1] - chops[0])*trimmm); //how long to play. Measured in samples
+
+    sampler3.start_location(chops[1]); //where to start playing. Measured in samples
+    sampler3.play_length((chops[2] - chops[1])*trimmm); //how long to play. Measured in samples
+
+    sampler4.start_location(chops[2]); //where to start playing. Measured in samples
+    sampler4.play_length((chops[3] - chops[2])*trimmm); //how long to play. Measured in samples
+
   }
 
 
-  if (current_time - prev_time[0] > 500 && 1) {
-    prev_time[0] = current_time;
+  if (current_time - prev_time[7] > 50 && 0) {
+    prev_time[7] = current_time;
+    Serial.println(sampler_freq[0]);
 
+  }
+
+  if (current_time - prev_time[0] > 500 && 0) {
+    prev_time[0] = current_time;
     Serial.print(AudioProcessorUsageMax());
     Serial.print("% ");
     Serial.print(AudioMemoryUsageMax());
