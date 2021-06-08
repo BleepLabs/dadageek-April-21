@@ -18,20 +18,29 @@
 #include <SerialFlash.h>
 
 // GUItool: begin automatically generated code
+AudioSynthWaveform       waveform3;      //xy=167,515
 AudioSynthWaveform       waveform2;      //xy=179,458
 AudioSynthWaveform       waveform1;      //xy=187,406
-AudioEffectEnvelope      envelope1;      //xy=344,399
-AudioEffectEnvelope      envelope2;      //xy=352,440
-AudioMixer4              mixer1;         //xy=502,441
-AudioOutputI2S           i2s1;           //xy=678,431
-AudioConnection          patchCord1(waveform2, envelope2);
-AudioConnection          patchCord2(waveform1, envelope1);
-AudioConnection          patchCord3(envelope1, 0, mixer1, 0);
-AudioConnection          patchCord4(envelope2, 0, mixer1, 1);
-AudioConnection          patchCord5(mixer1, 0, i2s1, 0);
-AudioConnection          patchCord6(mixer1, 0, i2s1, 1);
+AudioSynthWaveform       waveform4;      //xy=187,577
+AudioEffectEnvelope      envelope1;      //xy=354,385
+AudioEffectEnvelope      envelope2;      //xy=354,449
+AudioEffectEnvelope      envelope3;      //xy=359,501
+AudioEffectEnvelope      envelope4;      //xy=361,543
+AudioMixer4              mixer1;         //xy=542,465
+AudioOutputI2S           i2s1;           //xy=768,435
+AudioConnection          patchCord1(waveform3, envelope3);
+AudioConnection          patchCord2(waveform2, envelope2);
+AudioConnection          patchCord3(waveform1, envelope1);
+AudioConnection          patchCord4(waveform4, envelope4);
+AudioConnection          patchCord5(envelope1, 0, mixer1, 0);
+AudioConnection          patchCord6(envelope2, 0, mixer1, 1);
+AudioConnection          patchCord7(envelope3, 0, mixer1, 2);
+AudioConnection          patchCord8(envelope4, 0, mixer1, 3);
+AudioConnection          patchCord9(mixer1, 0, i2s1, 0);
+AudioConnection          patchCord10(mixer1, 0, i2s1, 1);
 AudioControlSGTL5000     sgtl5000_1;     //xy=496,191
 // GUItool: end automatically generated code
+
 
 
 
@@ -52,7 +61,8 @@ byte um_channel_select = 0; //0 to receive any USB MIDI channel
 byte prev_cc_pot[8], cc_pot[8]; //two arrays
 byte prev_button1_read, button1_read;
 byte button1_pin = 30;
-
+int osc_select;
+int poly_bank[4];
 
 #include <MIDI.h>
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI); //You can have multiple DIN MIDI systems setup in  the same device using different pins but this is the one on the Bleep Base and most other systems
@@ -84,22 +94,33 @@ void setup() {
   // See the tool for more info https://www.pjrc.com/teensy/gui/?info=AudioSynthWaveform
   waveform1.begin(1, 220.0, WAVEFORM_SINE);
   waveform2.begin(1, 440.0, WAVEFORM_SINE);
+  waveform3.begin(1, 220.0, WAVEFORM_SINE);
+  waveform4.begin(1, 440.0, WAVEFORM_SINE);
 
-  mixer1.gain(0, .5);
-  mixer1.gain(1, .5);
-  mixer1.gain(2, 0);
-  mixer1.gain(3, 0);
+  mixer1.gain(0, .25);
+  mixer1.gain(1, .25);
+  mixer1.gain(2, .25);
+  mixer1.gain(3, .25);
 
   envelope1.attack(10);
   envelope1.decay(50);
   envelope1.sustain(.5);
-  envelope1.release(1000);
+  envelope1.release(5000);
 
-  envelope2.attack(100);
+  envelope2.attack(10);
   envelope2.decay(50);
   envelope2.sustain(.5);
-  envelope2.release(1000);
+  envelope2.release(5000);
 
+  envelope3.attack(10);
+  envelope3.decay(50);
+  envelope3.sustain(.5);
+  envelope3.release(5000);
+
+  envelope4.attack(10);
+  envelope4.decay(50);
+  envelope4.sustain(.5);
+  envelope4.release(5000);
 
 
 } //setup is over
@@ -129,37 +150,94 @@ void loop() {
           Serial.print("  velocity: ");
           Serial.println(dm_velocity);
 
-          waveform1.frequency(chromatic[dm_note]);
-          waveform2.frequency(chromatic[dm_note] * 1.999 );
-          envelope1.noteOn();
-          envelope2.noteOn();
+
+          //for (int j = 0; j < 4; j++) {
+          osc_select++;
+          if (osc_select > 3) {
+            osc_select = 0;
+          }
+          //or just
+          //osc_select %=3
+          while (poly_bank[osc_select] != 0) {
+            osc_select++;
+            if (osc_select > 3) {
+              osc_select = 0;
+            }
+          }
+
+
+          if (osc_select == 0) {
+            waveform1.frequency(chromatic[dm_note]);
+            envelope1.noteOn();
+            poly_bank[osc_select] = dm_note;
+          }
+
+          if (osc_select == 1) {
+            waveform2.frequency(chromatic[dm_note]);
+            envelope2.noteOn();
+            poly_bank[osc_select] = dm_note;
+          }
+
+          if (osc_select == 2) {
+            waveform3.frequency(chromatic[dm_note]);
+            envelope3.noteOn();
+            poly_bank[osc_select] = dm_note;
+          }
+
+          if (osc_select == 3) {
+            waveform4.frequency(chromatic[dm_note]);
+            envelope4.noteOn();
+            poly_bank[osc_select] = dm_note;
+          }
+
 
         }
         if (dm_velocity == 0) { //some systems send velocity 0 as note off
-          Serial.print("Note Off: ");
-          Serial.println(dm_note);
-
-          envelope1.noteOff();
-          envelope2.noteOff();
         }
       }
 
       else if (dm_type == midi::NoteOff) { //else if can be used so we only have one outcome
         dm_note = MIDI.getData1();
+
+        for (int j = 0; j < 4; j++) {
+          
+          if (poly_bank[j] == dm_note) {
+            osc_select = j;
+            poly_bank[j] = 0; //add a featuer to turn this to 0 only after the release has expired
+            
+            if (osc_select == 0) {
+              envelope1.noteOff();
+            }
+            if (osc_select == 1) {
+              envelope2.noteOff();
+            }
+            if (osc_select == 2) {
+              envelope3.noteOff();
+            }
+            if (osc_select == 3) {
+              envelope4.noteOff();
+            }
+
+          }
+        }
+
         Serial.print("Note Off: ");
         Serial.println(dm_note);
-        envelope1.noteOff();
-        envelope2.noteOff();
+
+
 
       }
 
       else if (dm_type == midi::ControlChange) {
         dm_cc_num = MIDI.getData1();
         dm_cc_val = MIDI.getData2();
-        Serial.print("CC#: ");
-        Serial.print(dm_cc_num);
-        Serial.print("  value: ");
-        Serial.println(dm_cc_val);
+        /*
+          Serial.print("CC#: ");
+          Serial.print(dm_cc_num);
+          Serial.print("  value: ");
+          Serial.println(dm_cc_val);
+        */
+
       }
 
       //If it's not a note on or off or cc do this.
@@ -176,11 +254,13 @@ void loop() {
       else {
         dm_data1 = MIDI.getData1();
         dm_data2 = MIDI.getData2();
-        Serial.print(dm_type);
-        Serial.print(" ");
-        Serial.print(dm_data1);
-        Serial.print("  value: ");
-        Serial.println(dm_data2);
+        /*
+          Serial.print(dm_type);
+          Serial.print(" ");
+          Serial.print(dm_data1);
+          Serial.print("  value: ");
+          Serial.println(dm_data2);
+        */
 
       }
     }
@@ -289,6 +369,17 @@ void loop() {
   }
 
   //////////////////////////
+
+  if (current_time - prev_time[1] > 50 && 1) {
+    prev_time[1] = current_time;
+    for (int j = 0; j < 4; j++) {
+      Serial.print(poly_bank[j]);
+      Serial.print(" ");
+    }
+
+    Serial.println();
+  }
+
 
   if (current_time - prev_time[0] > 500 && 0) {
     prev_time[0] = current_time;
