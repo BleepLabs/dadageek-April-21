@@ -181,7 +181,7 @@ void setup() {
   //(bank name, length of sample)
   //length of sample is returned by SDtoRAM. It's a little differnt than the actual file length
   // unfortuantley this length number isnt perfect and you might have to adkust it for some wav files
-  sampler1.begin(SDbank0, sd_wav_sample_len);
+  sampler1.begin(SDbank0, sd_wav_sample_len-500);
   sampler1.loop(0); //1 too loop
   sampler1.frequency(1.0); //1.0 is normal speed. .5 would be half as slow, 2 would be twice as fast
   //SD samples work a little differntly that WAV2SKETCH ones. This keeps the SD samples working at the same speed as other ones. really it just dubles the rate you put into frequency

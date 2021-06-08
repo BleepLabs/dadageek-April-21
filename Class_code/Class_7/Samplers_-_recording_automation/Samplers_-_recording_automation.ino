@@ -1,8 +1,8 @@
 /*
 
-  Record the position of a pot and play it back 
+  Record the position of a pot and play it back
 
-  
+
   https://bleeplabs.github.io/AudioGUI-Bleep/?info=MemSampler
 
   This code shows three types of sampling
@@ -131,6 +131,11 @@ int pot_in, pot_out;
 
 void setup() {
 
+  //turn off audio code
+  // this is necessary to avoid glitches while loading samples
+  AudioNoInterrupts ();
+
+
   Serial.print("Initializing SD card...");
 
   // see if the card is present and can be initialized:
@@ -146,7 +151,7 @@ void setup() {
   // it reurns the acutal size of the audio so the sample will end at just the right time
   // this is currently jsut for mono wav files that are 16bit but I'll be adding more features soon
 
-  //  sd_wav_sample_len = SD2RAM("taiko2.wav", SDbank0); //file name inside " " , bank to put it in
+  // sd_wav_sample_len = SD2RAM("taiko2.wav", SDbank0); //file name inside " " , bank to put it in
 
   LEDs.begin(); //must be done in setup for the addressable LEDs to work.
   //here is a basic way of writing to the LEDs.
@@ -216,6 +221,10 @@ void setup() {
   sampler4.frequency(1.0);
   sampler4.reverse(0);
 
+
+  AudioInterrupts();  //turn audio code bank on
+
+
 } //setup is over
 
 
@@ -273,17 +282,17 @@ void loop() {
   if ( buttons[6].read() == 0) { //record the pot
     if (current_time - prev_time[4] > 2) { //500Hz sampling rate. You can probably go down to 100Hz and still be smooth enough
       prev_time[4] = current_time;
-    
+
       auto_rec_index++;
       if (auto_rec_index > auto_max_length) { //jsut kees looping, doesnt reset or turn off
         auto_rec_index = 0;
       }
-      pot_in = analogRead(A17); 
-      automation[auto_rec_index] = pot_in / 4; //analog read is 10 bits but the array is a byte, 8 bites  1024/4=256. YOu can bee a cool nerd and do >>2, bitshift right by 2 
+      pot_in = analogRead(A17);
+      automation[auto_rec_index] = pot_in / 4; //analog read is 10 bits but the array is a byte, 8 bites  1024/4=256. YOu can bee a cool nerd and do >>2, bitshift right by 2
     }
   }
 
-  if ( buttons[5].read() == 0) { //play back 
+  if ( buttons[5].read() == 0) { //play back
     if (current_time - prev_time[5] > 2) { //same rate but of course you could vary it
       prev_time[5] = current_time;
       auto_play_index++;
@@ -350,8 +359,8 @@ void loop() {
     //combine the pot and pot to cahnge the frequency
     //take the pot from 0-255 to -1.0 to 1.0
     sampler_freq[0] = sampler_freq[0] + (((pot_out / 255.0) * 2.0) - 1.0);
-    if (sampler_freq[0]<0){
-      sampler_freq[0]=0; //dont want to go under 0
+    if (sampler_freq[0] < 0) {
+      sampler_freq[0] = 0; //dont want to go under 0
     }
 
     sampler1.frequency(sampler_freq[0]);
@@ -383,7 +392,7 @@ void loop() {
 
   }
 
-  if (current_time - prev_time[0] > 500 && 0) {
+  if (current_time - prev_time[0] > 500 && 1) {
     prev_time[0] = current_time;
     Serial.print(AudioProcessorUsageMax());
     Serial.print("% ");
